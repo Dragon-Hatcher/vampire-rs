@@ -14,7 +14,7 @@
 //! # Quick Start
 //!
 //! ```
-//! use vampire::{Function, Predicate, Problem, ProofRes, forall};
+//! use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 //!
 //! // Create predicates
 //! let is_mortal = Predicate::new("mortal", 1);
@@ -69,7 +69,7 @@
 //! Prove transitivity of paths in a graph:
 //!
 //! ```
-//! use vampire::{Function, Predicate, Problem, ProofRes, forall};
+//! use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 //!
 //! let edge = Predicate::new("edge", 2);
 //! let path = Predicate::new("path", 2);
@@ -105,7 +105,7 @@
 //! Prove that left identity follows from the standard group axioms:
 //!
 //! ```
-//! use vampire::{Function, Problem, ProofRes, Term, forall};
+//! use vampire_prover::{Function, Problem, ProofRes, Term, forall};
 //!
 //! let mult = Function::new("mult", 2);
 //! let inv = Function::new("inv", 1);
@@ -167,7 +167,7 @@ mod lock;
 /// # Examples
 ///
 /// ```
-/// use vampire::Function;
+/// use vampire_prover::Function;
 ///
 /// // Create a constant (0-ary function)
 /// let socrates = Function::constant("socrates");
@@ -199,7 +199,7 @@ impl Function {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Function;
+    /// use vampire_prover::Function;
     ///
     /// let mult = Function::new("mult", 2);
     /// assert_eq!(mult.arity(), 2);
@@ -228,7 +228,7 @@ impl Function {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Function;
+    /// use vampire_prover::Function;
     ///
     /// let f = Function::new("f", 3);
     /// assert_eq!(f.arity(), 3);
@@ -249,7 +249,7 @@ impl Function {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Function;
+    /// use vampire_prover::Function;
     ///
     /// let socrates = Function::constant("socrates");
     /// let zero = Function::constant("0");
@@ -267,7 +267,7 @@ impl Function {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Term};
+    /// use vampire_prover::{Function, Term};
     ///
     /// let add = Function::new("add", 2);
     /// let x = Term::new_var(0);
@@ -290,7 +290,7 @@ impl Function {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate};
+/// use vampire_prover::{Function, Predicate};
 ///
 /// // Unary predicate (property)
 /// let is_mortal = Predicate::new("mortal", 1);
@@ -324,7 +324,7 @@ impl Predicate {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Predicate;
+    /// use vampire_prover::Predicate;
     ///
     /// let edge = Predicate::new("edge", 2);
     /// assert_eq!(edge.arity(), 2);
@@ -355,7 +355,7 @@ impl Predicate {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Predicate;
+    /// use vampire_prover::Predicate;
     ///
     /// let p = Predicate::new("p", 2);
     /// assert_eq!(p.arity(), 2);
@@ -373,7 +373,7 @@ impl Predicate {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate};
+    /// use vampire_prover::{Function, Predicate};
     ///
     /// let mortal = Predicate::new("mortal", 1);
     /// let socrates = Function::constant("socrates");
@@ -396,7 +396,7 @@ impl Predicate {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Term};
+/// use vampire_prover::{Function, Term};
 ///
 /// // Create a constant
 /// let zero = Function::constant("0");
@@ -426,7 +426,7 @@ impl Term {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Term};
+    /// use vampire_prover::{Function, Term};
     ///
     /// let add = Function::new("add", 2);
     /// let x = Term::new_var(0);
@@ -459,7 +459,7 @@ impl Term {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Term;
+    /// use vampire_prover::Term;
     ///
     /// let x = Term::new_var(0);
     /// let y = Term::new_var(1);
@@ -480,7 +480,7 @@ impl Term {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Term;
+    /// use vampire_prover::Term;
     ///
     /// let (x, idx) = Term::free_var();
     /// assert_eq!(idx, 0);
@@ -506,7 +506,7 @@ impl Term {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, forall};
+    /// use vampire_prover::{Function, forall};
     ///
     /// let succ = Function::new("succ", 1);
     /// let zero = Function::constant("0");
@@ -532,7 +532,7 @@ impl Term {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate, forall};
+/// use vampire_prover::{Function, Predicate, forall};
 ///
 /// let p = Predicate::new("P", 1);
 /// let q = Predicate::new("Q", 1);
@@ -575,7 +575,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Formula};
+    /// use vampire_prover::{Function, Predicate, Formula};
     ///
     /// let mortal = Predicate::new("mortal", 1);
     /// let socrates = Function::constant("socrates");
@@ -601,7 +601,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Formula};
+    /// use vampire_prover::{Function, Formula};
     ///
     /// let x = Function::constant("x");
     /// let y = Function::constant("y");
@@ -623,7 +623,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Formula};
+    /// use vampire_prover::{Function, Predicate, Formula};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
@@ -653,7 +653,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Formula};
+    /// use vampire_prover::{Function, Predicate, Formula};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
@@ -683,7 +683,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Formula};
+    /// use vampire_prover::{Function, Predicate, Formula};
     ///
     /// let p = Predicate::new("P", 1);
     /// let x = Function::constant("x");
@@ -709,7 +709,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Formula, Term};
+    /// use vampire_prover::{Function, Predicate, Formula, Term};
     ///
     /// let p = Predicate::new("P", 1);
     /// let x = Term::new_var(0);
@@ -736,7 +736,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Formula, Term};
+    /// use vampire_prover::{Function, Predicate, Formula, Term};
     ///
     /// let p = Predicate::new("P", 1);
     /// let x = Term::new_var(0);
@@ -762,7 +762,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate};
+    /// use vampire_prover::{Function, Predicate};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
@@ -789,7 +789,7 @@ impl Formula {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, forall};
+    /// use vampire_prover::{Function, Predicate, forall};
     ///
     /// let even = Predicate::new("even", 1);
     /// let div_by_2 = Predicate::new("divisible_by_2", 1);
@@ -820,7 +820,7 @@ impl Formula {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate, forall};
+/// use vampire_prover::{Function, Predicate, forall};
 ///
 /// let p = Predicate::new("P", 1);
 ///
@@ -835,7 +835,7 @@ impl Formula {
 /// # Complex Example
 ///
 /// ```
-/// use vampire::{Function, Predicate, forall};
+/// use vampire_prover::{Function, Predicate, forall};
 ///
 /// let mortal = Predicate::new("mortal", 1);
 /// let human = Predicate::new("human", 1);
@@ -864,7 +864,7 @@ pub fn forall<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate, exists};
+/// use vampire_prover::{Function, Predicate, exists};
 ///
 /// let prime = Predicate::new("prime", 1);
 ///
@@ -879,7 +879,7 @@ pub fn forall<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
 /// # Complex Example
 ///
 /// ```
-/// use vampire::{Function, Predicate, exists, forall};
+/// use vampire_prover::{Function, Predicate, exists, forall};
 ///
 /// let greater = Predicate::new("greater", 2);
 ///
@@ -897,7 +897,7 @@ pub fn exists<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate};
+/// use vampire_prover::{Function, Predicate};
 ///
 /// let p = Predicate::new("P", 1);
 /// let q = Predicate::new("Q", 1);
@@ -919,7 +919,7 @@ impl BitAnd for Formula {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate};
+/// use vampire_prover::{Function, Predicate};
 ///
 /// let p = Predicate::new("P", 1);
 /// let q = Predicate::new("Q", 1);
@@ -941,7 +941,7 @@ impl BitOr for Formula {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate};
+/// use vampire_prover::{Function, Predicate};
 ///
 /// let p = Predicate::new("P", 1);
 /// let x = Function::constant("x");
@@ -962,7 +962,7 @@ impl Not for Formula {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate};
+/// use vampire_prover::{Function, Predicate};
 ///
 /// let p = Predicate::new("P", 1);
 /// let q = Predicate::new("Q", 1);
@@ -990,7 +990,7 @@ impl Shr for Formula {
 /// ## Basic Usage
 ///
 /// ```
-/// use vampire::{Function, Predicate, Problem, ProofRes, forall};
+/// use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 ///
 /// let mortal = Predicate::new("mortal", 1);
 /// let human = Predicate::new("human", 1);
@@ -1010,7 +1010,7 @@ impl Shr for Formula {
 /// You can also create problems without a conjecture to check satisfiability:
 ///
 /// ```
-/// use vampire::{Function, Predicate, Problem};
+/// use vampire_prover::{Function, Predicate, Problem};
 ///
 /// let p = Predicate::new("P", 1);
 /// let x = Function::constant("x");
@@ -1034,7 +1034,7 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire::Problem;
+    /// use vampire_prover::Problem;
     ///
     /// let problem = Problem::new();
     /// ```
@@ -1060,7 +1060,7 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Problem, forall};
+    /// use vampire_prover::{Function, Predicate, Problem, forall};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
@@ -1089,7 +1089,7 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Problem, forall};
+    /// use vampire_prover::{Function, Predicate, Problem, forall};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
@@ -1118,7 +1118,7 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire::{Function, Predicate, Problem, ProofRes, forall};
+    /// use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
     ///
     /// let p = Predicate::new("P", 1);
     /// let x = Function::constant("x");
@@ -1162,7 +1162,7 @@ impl Problem {
 /// # Examples
 ///
 /// ```
-/// use vampire::{Function, Predicate, Problem, ProofRes, forall};
+/// use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 ///
 /// let p = Predicate::new("P", 1);
 /// let x = Function::constant("x");
@@ -1204,7 +1204,7 @@ pub enum ProofRes {
 /// # Examples
 ///
 /// ```
-/// use vampire::{ProofRes, UnknownReason};
+/// use vampire_prover::{ProofRes, UnknownReason};
 ///
 /// let result = ProofRes::Unknown(UnknownReason::Timeout);
 ///

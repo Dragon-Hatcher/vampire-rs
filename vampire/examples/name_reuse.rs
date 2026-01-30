@@ -1,4 +1,4 @@
-use vampire::{Function, Predicate, Problem};
+use vampire_prover::{Function, Predicate, Problem};
 
 fn main() {
     let x1 = Function::new("x", 0);

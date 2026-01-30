@@ -1,5 +1,5 @@
 use std::time::Instant;
-use vampire::{Function, Predicate, Problem, ProofRes, Term, exists, forall};
+use vampire_prover::{Function, Predicate, Problem, ProofRes, Term, exists, forall};
 
 fn main() {
     println!("Running index-2 subgroup normality proof benchmark");

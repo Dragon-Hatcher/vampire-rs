@@ -14,7 +14,7 @@ The main crate providing safe, high-level Rust bindings. **This is what you want
 
 ```toml
 [dependencies]
-vampire = "0.1.0"
+vampire-prover = "0.1.0"
 ```
 
 **Features:**
@@ -27,7 +27,7 @@ vampire = "0.1.0"
 **Quick Example:**
 
 ```rust
-use vampire::{Function, Predicate, Problem, ProofRes, forall};
+use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 
 let is_mortal = Predicate::new("mortal", 1);
 let is_man = Predicate::new("man", 1);

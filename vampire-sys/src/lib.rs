@@ -6,7 +6,7 @@
 //!
 //! # Usage
 //!
-//! **You probably want the [`vampire`](https://docs.rs/vampire) crate instead.**
+//! **You probably want the [`vampire-prover`](https://docs.rs/vampire-prover) crate instead.**
 //!
 //! The `vampire` crate provides a safe, ergonomic Rust API on top of these raw
 //! bindings. This crate (`vampire-sys`) only provides the low-level unsafe

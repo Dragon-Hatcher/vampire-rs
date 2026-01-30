@@ -6,7 +6,7 @@ Low-level FFI bindings to the [Vampire](https://vprover.github.io/) theorem prov
 
 This crate provides unsafe, raw C bindings to the Vampire library. It is intended as an implementation detail and is not meant to be used directly.
 
-**For safe, ergonomic Rust bindings, use the [`vampire`](https://crates.io/crates/vampire) crate.**
+**For safe, ergonomic Rust bindings, use the [`vampire-prover`](https://crates.io/crates/vampire-prover) crate.**
 
 ## What This Crate Provides
 
@@ -58,4 +58,4 @@ When distributing applications using this crate, you must comply with both the R
 ## Links
 
 - [Vampire Prover](https://vprover.github.io/)
-- [vampire crate](https://crates.io/crates/vampire) - Safe Rust bindings
+- [vampire crate](https://crates.io/crates/vampire-prover) - Safe Rust bindings

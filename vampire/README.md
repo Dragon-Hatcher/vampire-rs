@@ -16,7 +16,7 @@ This crate provides a high-level, safe Rust interface to Vampire, a state-of-the
 ## Quick Start
 
 ```rust
-use vampire::{Function, Predicate, Problem, ProofRes, forall};
+use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 
 // Create predicates
 let is_mortal = Predicate::new("mortal", 1);
@@ -45,7 +45,7 @@ assert_eq!(result, ProofRes::Proved);
 Terms represent objects in first-order logic:
 
 ```rust
-use vampire::{Function, Term};
+use vampire_prover::{Function, Term};
 
 // Constants (0-ary functions)
 let zero = Function::constant("0");
@@ -70,7 +70,7 @@ let sum = add.with(&[x, y]);
 Formulas are logical statements:
 
 ```rust
-use vampire::{Function, Predicate, forall};
+use vampire_prover::{Function, Predicate, forall};
 
 let p = Predicate::new("P", 1);
 let q = Predicate::new("Q", 1);
@@ -97,7 +97,7 @@ let some = exists(|x| p.with(&[x]));       // ∃x. P(x)
 Equality is a built-in predicate:
 
 ```rust
-use vampire::{Function, forall};
+use vampire_prover::{Function, forall};
 
 let f = Function::new("f", 1);
 let x = Function::constant("x");
@@ -116,7 +116,7 @@ let reflexive = forall(|x| x.eq(x));  // ∀x. x = x
 Prove that a path exists in a graph using transitivity:
 
 ```rust
-use vampire::{Function, Predicate, Problem, ProofRes, forall};
+use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
 
 let edge = Predicate::new("edge", 2);
 let path = Predicate::new("path", 2);
@@ -155,7 +155,7 @@ assert_eq!(result, ProofRes::Proved);
 Prove the left identity from the standard group axioms:
 
 ```rust
-use vampire::{Function, Problem, ProofRes, Term, forall};
+use vampire_prover::{Function, Problem, ProofRes, Term, forall};
 
 let mult = Function::new("mult", 2);
 let inv = Function::new("inv", 1);
@@ -188,7 +188,7 @@ assert_eq!(result, ProofRes::Proved);
 Prove properties about sets:
 
 ```rust
-use vampire::{Function, Predicate, Problem, forall};
+use vampire_prover::{Function, Predicate, Problem, forall};
 
 let member = Predicate::new("member", 2);
 let subset = Predicate::new("subset", 2);
