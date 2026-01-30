@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Daniel James"]
 description = "Low-level FFI bindings to the Vampire theorem prover (use the 'vampire' crate instead)"
+homepage = "https://github.com/Dragon-Hatcher/vampire-rs"
 repository = "https://github.com/Dragon-Hatcher/vampire-rs"
 keywords = ["theorem-prover", "vampire", "ffi", "bindings"]
 categories = ["external-ffi-bindings", "science"]
