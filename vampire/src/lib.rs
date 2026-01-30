@@ -1,7 +1,7 @@
 use crate::lock::synced;
 use std::{
     ffi::CString,
-    ops::{BitAnd, BitOr, Shr},
+    ops::{BitAnd, BitOr, Not, Shr},
 };
 use vampire_sys as sys;
 
@@ -152,6 +152,13 @@ impl Formula {
         })
     }
 
+    pub fn new_not(formula: Formula) -> Self {
+        synced(|_| {
+            let id = unsafe { sys::vampire_not(formula.id) };
+            Self { id }
+        })
+    }
+
     pub fn new_forall(var: u32, f: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_forall(var, f.id) };
@@ -162,13 +169,6 @@ impl Formula {
     pub fn new_exists(var: u32, f: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_exists(var, f.id) };
-            Self { id }
-        })
-    }
-
-    pub fn not(&self) -> Self {
-        synced(|_| {
-            let id = unsafe { sys::vampire_not(self.id) };
             Self { id }
         })
     }
@@ -213,6 +213,14 @@ impl BitOr for Formula {
 
     fn bitor(self, rhs: Self) -> Self::Output {
         Formula::new_or(&[self, rhs])
+    }
+}
+
+impl Not for Formula {
+    type Output = Formula;
+
+    fn not(self) -> Self::Output {
+        Formula::new_not(self)
     }
 }
 
@@ -465,7 +473,7 @@ mod test {
         // H specifically is of order 2
         let h_index_2 = exists(|x| {
             // an element not in H
-            let not_in_h = h.with(&[x]).not();
+            let not_in_h = !h.with(&[x]);
             // but everything is in H or x H
             let class = forall(|y| h.with(&[y]) | h.with(&[mul(inv.with(&[x]), y)]));
 
