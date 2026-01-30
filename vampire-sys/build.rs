@@ -1,9 +1,7 @@
 use std::{env, path::PathBuf};
 
 fn main() {
-    let vampire_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("vampire-lib");
+    let vampire_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vampire-lib");
 
     let dst = cmake::Config::new(vampire_path)
         .define("CMAKE_BUILD_TYPE", "Release")
