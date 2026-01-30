@@ -212,6 +212,7 @@ impl Shr for Formula {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Problem {
     axioms: Vec<Formula>,
     conjecture: Option<Formula>,
@@ -248,6 +249,7 @@ impl Problem {
                 units.push(conjecture_unit);
             }
 
+            sys::vampire_prepare_for_next_proof();
             let problem = sys::vampire_problem_from_units(units.as_mut_ptr(), units.len());
             let proof_res = sys::vampire_prove(problem);
 
@@ -293,17 +295,22 @@ impl ProofRes {
 
 #[cfg(test)]
 mod test {
-    use crate::{Function, Predicate, Problem, forall};
+    use crate::{Function, Predicate, Problem, ProofRes, forall};
 
     #[test]
-    fn socrates() {
+    fn socrates_proof() {
+        // Classic Socrates syllogism
         let is_mortal = Predicate::new("mortal", 1);
         let is_man = Predicate::new("man", 1);
 
+        // All men are mortal
         let men_are_mortal = forall(|x| is_man.with(&[x]) >> is_mortal.with(&[x]));
 
+        // Socrates is a man
         let socrates = Function::constant("socrates");
         let socrates_is_man = is_man.with(&[socrates]);
+
+        // Therefore, Socrates is mortal
         let socrates_is_mortal = is_mortal.with(&[socrates]);
 
         let solution = Problem::new()
@@ -312,7 +319,56 @@ mod test {
             .conjecture(socrates_is_mortal)
             .solve();
 
-        dbg!(solution);
-        assert!(false);
+        assert_eq!(solution, ProofRes::Proved);
+    }
+
+    #[test]
+    fn graph_reachability() {
+        // Prove transitive reachability in a graph
+        // Given: edge(a,b), edge(b,c), edge(c,d), edge(d,e)
+        // And: path(x,y) if edge(x,y)
+        // And: path is transitive: path(x,y) ∧ path(y,z) → path(x,z)
+        // Prove: path(a,e)
+
+        let edge = Predicate::new("edge", 2);
+        let path = Predicate::new("path", 2);
+
+        // Define nodes
+        let a = Function::constant("a");
+        let b = Function::constant("b");
+        let c = Function::constant("c");
+        let d = Function::constant("d");
+        let e = Function::constant("e");
+
+        // Axiom 1: Direct edges are paths
+        // ∀x,y. edge(x,y) → path(x,y)
+        let direct_edge_is_path = forall(|x| forall(|y| edge.with(&[x, y]) >> path.with(&[x, y])));
+
+        // Axiom 2: Transitivity of paths
+        // ∀x,y,z. path(x,y) ∧ path(y,z) → path(x,z)
+        let path_transitivity = forall(|x| {
+            forall(|y| forall(|z| (path.with(&[x, y]) & path.with(&[y, z])) >> path.with(&[x, z])))
+        });
+
+        // Concrete edges in the graph
+        let edge_ab = edge.with(&[a, b]);
+        let edge_bc = edge.with(&[b, c]);
+        let edge_cd = edge.with(&[c, d]);
+        let edge_de = edge.with(&[d, e]);
+
+        // Conjecture: there is a path from a to e
+        let conjecture = path.with(&[a, e]);
+
+        let solution = Problem::new()
+            .with_axiom(direct_edge_is_path)
+            .with_axiom(path_transitivity)
+            .with_axiom(edge_ab)
+            .with_axiom(edge_bc)
+            .with_axiom(edge_cd)
+            .with_axiom(edge_de)
+            .conjecture(conjecture)
+            .solve();
+
+        assert_eq!(solution, ProofRes::Proved);
     }
 }
