@@ -101,6 +101,10 @@ impl Term {
             (Self { id: term }, idx)
         })
     }
+
+    pub fn eq(&self, rhs: Term) -> Formula {
+        Formula::new_eq(*self, rhs)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -117,6 +121,14 @@ impl Formula {
             let arg_count = args.len();
             let args = std::mem::transmute(args.as_ptr());
             let lit = sys::vampire_lit(pred.id, true, args, arg_count);
+            let atom = sys::vampire_atom(lit);
+            Self { id: atom }
+        })
+    }
+
+    pub fn new_eq(lhs: Term, rhs: Term) -> Self {
+        synced(|_| unsafe {
+            let lit = sys::vampire_eq(true, lhs.id, rhs.id);
             let atom = sys::vampire_atom(lit);
             Self { id: atom }
         })
@@ -295,7 +307,7 @@ impl ProofRes {
 
 #[cfg(test)]
 mod test {
-    use crate::{Function, Predicate, Problem, ProofRes, forall};
+    use crate::{Function, Predicate, Problem, ProofRes, Term, exists, forall};
 
     #[test]
     fn socrates_proof() {
@@ -367,6 +379,118 @@ mod test {
             .with_axiom(edge_cd)
             .with_axiom(edge_de)
             .conjecture(conjecture)
+            .solve();
+
+        assert_eq!(solution, ProofRes::Proved);
+    }
+
+    #[test]
+    fn group_left_identity() {
+        // Prove that the identity element works on the left using group axioms
+        // In group theory, if we define a group with:
+        //   - Right identity: x * 1 = x
+        //   - Right inverse: x * inv(x) = 1
+        //   - Associativity: (x * y) * z = x * (y * z)
+        // Then we can prove the left identity: 1 * x = x
+
+        let mult = Function::new("mult", 2);
+        let inv = Function::new("inv", 1);
+        let one = Function::constant("1");
+
+        // Helper to make multiplication more readable
+        let mul = |x: Term, y: Term| -> Term { mult.with(&[x, y]) };
+
+        // Axiom 1: Right identity - ∀x. x * 1 = x
+        let right_identity = forall(|x| mul(x, one).eq(x));
+
+        // Axiom 2: Right inverse - ∀x. x * inv(x) = 1
+        let right_inverse = forall(|x| {
+            let inv_x = inv.with(&[x]);
+            mul(x, inv_x).eq(one)
+        });
+
+        // Axiom 3: Associativity - ∀x,y,z. (x * y) * z = x * (y * z)
+        let associativity =
+            forall(|x| forall(|y| forall(|z| mul(mul(x, y), z).eq(mul(x, mul(y, z))))));
+
+        // Conjecture: Left identity - ∀x. 1 * x = x
+        let left_identity = forall(|x| mul(one, x).eq(x));
+
+        let solution = Problem::new()
+            .with_axiom(right_identity)
+            .with_axiom(right_inverse)
+            .with_axiom(associativity)
+            .conjecture(left_identity)
+            .solve();
+
+        assert_eq!(solution, ProofRes::Proved);
+    }
+
+    #[test]
+    fn group_index2_subgroup_normal() {
+        // Prove that every subgroup of index 2 is normal.
+        let mult = Function::new("mult", 2);
+        let inv = Function::new("inv", 1);
+        let one = Function::constant("1");
+
+        // Helper to make multiplication more readable
+        let mul = |x: Term, y: Term| -> Term { mult.with(&[x, y]) };
+
+        // Group Axiom 1: Right identity - ∀x. x * 1 = x
+        let right_identity = forall(|x| mul(x, one).eq(x));
+
+        // Group Axiom 2: Right inverse - ∀x. x * inv(x) = 1
+        let right_inverse = forall(|x| {
+            let inv_x = inv.with(&[x]);
+            mul(x, inv_x).eq(one)
+        });
+
+        // Group Axiom 3: Associativity - ∀x,y,z. (x * y) * z = x * (y * z)
+        let associativity =
+            forall(|x| forall(|y| forall(|z| mul(mul(x, y), z).eq(mul(x, mul(y, z))))));
+
+        // Describe the subgroup
+        let h = Predicate::new("h", 1);
+
+        // Any subgroup contains the identity
+        let h_ident = h.with(&[one]);
+
+        // And is closed under multiplication
+        let h_mul_closed =
+            forall(|x| forall(|y| (h.with(&[x]) & h.with(&[y])) >> h.with(&[mul(x, y)])));
+
+        // And is closed under inverse
+        let h_inv_closed = forall(|x| h.with(&[x]) >> h.with(&[inv.with(&[x])]));
+
+        // H specifically is of order 2
+        let h_index_2 = exists(|x| {
+            // an element not in H
+            let not_in_h = h.with(&[x]).not();
+            // but everything is in H or x H
+            let class = forall(|y| h.with(&[y]) | h.with(&[mul(inv.with(&[x]), y)]));
+
+            not_in_h & class
+        });
+
+        // Conjecture: H is normal
+        let h_normal = forall(|x| {
+            let h_x = h.with(&[x]);
+            let conj_x = forall(|y| {
+                let y_inv = inv.with(&[y]);
+                h.with(&[mul(mul(y, x), y_inv)])
+            });
+            h_x.iff(conj_x)
+        });
+
+        let solution = Problem::new()
+            .with_axiom(right_identity)
+            .with_axiom(right_inverse)
+            .with_axiom(associativity)
+            .with_axiom(h_ident)
+            .with_axiom(h_mul_closed)
+            .with_axiom(h_inv_closed)
+            .with_axiom(h_index_2)
+            .conjecture(h_normal)
             .solve();
 
         assert_eq!(solution, ProofRes::Proved);
