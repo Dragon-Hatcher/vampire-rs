@@ -1,3 +1,145 @@
+//! A Rust interface to the Vampire theorem prover.
+//!
+//! This crate provides safe Rust bindings to Vampire, a state-of-the-art automated
+//! theorem prover for first-order logic with equality. Vampire can prove theorems,
+//! check satisfiability, and find counterexamples in various mathematical domains.
+//!
+//! # Thread Safety
+//!
+//! **Important**: The underlying Vampire library is not thread-safe. This crate
+//! protects all operations with a global mutex, so while you can safely use the
+//! library from multiple threads, all proof operations will be serialized. Only
+//! one proof can execute at a time.
+//!
+//! # Quick Start
+//!
+//! ```
+//! use vampire::{Function, Predicate, Problem, ProofRes, forall};
+//!
+//! // Create predicates
+//! let is_mortal = Predicate::new("mortal", 1);
+//! let is_man = Predicate::new("man", 1);
+//!
+//! // Create a universal statement: ∀x. man(x) → mortal(x)
+//! let men_are_mortal = forall(|x| is_man.with(&[x]) >> is_mortal.with(&[x]));
+//!
+//! // Create a constant
+//! let socrates = Function::constant("socrates");
+//!
+//! // Build and solve the problem
+//! let result = Problem::new()
+//!     .with_axiom(is_man.with(&[socrates]))    // Socrates is a man
+//!     .with_axiom(men_are_mortal)              // All men are mortal
+//!     .conjecture(is_mortal.with(&[socrates])) // Therefore, Socrates is mortal
+//!     .solve();
+//!
+//! assert_eq!(result, ProofRes::Proved);
+//! ```
+//!
+//! # Core Concepts
+//!
+//! ## Terms
+//!
+//! Terms represent objects in first-order logic. They can be:
+//! - **Constants**: Nullary functions like `socrates`
+//! - **Variables**: Bound or free variables like `x` in `∀x. P(x)`
+//! - **Function applications**: e.g., `mult(x, y)`
+//!
+//! ## Formulas
+//!
+//! Formulas are logical statements that can be:
+//! - **Predicates**: `mortal(socrates)`
+//! - **Equality**: `x = y`
+//! - **Logical connectives**: `P ∧ Q`, `P ∨ Q`, `P → Q`, `P ↔ Q`, `¬P`
+//! - **Quantifiers**: `∀x. P(x)`, `∃x. P(x)`
+//!
+//! ## Operators
+//!
+//! The crate provides Rust operators for logical connectives:
+//! - `&` for conjunction (AND)
+//! - `|` for disjunction (OR)
+//! - `>>` for implication
+//! - `!` for negation (NOT)
+//! - [`Formula::iff`] for biconditional (if and only if)
+//!
+//! # Examples
+//!
+//! ## Graph Reachability
+//!
+//! Prove transitivity of paths in a graph:
+//!
+//! ```
+//! use vampire::{Function, Predicate, Problem, ProofRes, forall};
+//!
+//! let edge = Predicate::new("edge", 2);
+//! let path = Predicate::new("path", 2);
+//!
+//! // Create nodes
+//! let a = Function::constant("a");
+//! let b = Function::constant("b");
+//! let c = Function::constant("c");
+//!
+//! // Axiom: edges are paths
+//! let edges_are_paths = forall(|x| forall(|y|
+//!     edge.with(&[x, y]) >> path.with(&[x, y])
+//! ));
+//!
+//! // Axiom: paths are transitive
+//! let transitivity = forall(|x| forall(|y| forall(|z|
+//!     (path.with(&[x, y]) & path.with(&[y, z])) >> path.with(&[x, z])
+//! )));
+//!
+//! let result = Problem::new()
+//!     .with_axiom(edges_are_paths)
+//!     .with_axiom(transitivity)
+//!     .with_axiom(edge.with(&[a, b]))
+//!     .with_axiom(edge.with(&[b, c]))
+//!     .conjecture(path.with(&[a, c]))
+//!     .solve();
+//!
+//! assert_eq!(result, ProofRes::Proved);
+//! ```
+//!
+//! ## Group Theory
+//!
+//! Prove that left identity follows from the standard group axioms:
+//!
+//! ```
+//! use vampire::{Function, Problem, ProofRes, Term, forall};
+//!
+//! let mult = Function::new("mult", 2);
+//! let inv = Function::new("inv", 1);
+//! let one = Function::constant("1");
+//!
+//! let mul = |x: Term, y: Term| mult.with(&[x, y]);
+//!
+//! // Group Axiom 1: Right identity - ∀x. x * 1 = x
+//! let right_identity = forall(|x| mul(x, one).eq(x));
+//!
+//! // Group Axiom 2: Right inverse - ∀x. x * inv(x) = 1
+//! let right_inverse = forall(|x| {
+//!     let inv_x = inv.with(&[x]);
+//!     mul(x, inv_x).eq(one)
+//! });
+//!
+//! // Group Axiom 3: Associativity - ∀x,y,z. (x * y) * z = x * (y * z)
+//! let associativity = forall(|x| forall(|y| forall(|z|
+//!     mul(mul(x, y), z).eq(mul(x, mul(y, z)))
+//! )));
+//!
+//! // Prove left identity: ∀x. 1 * x = x
+//! let left_identity = forall(|x| mul(one, x).eq(x));
+//!
+//! let result = Problem::new()
+//!     .with_axiom(right_identity)
+//!     .with_axiom(right_inverse)
+//!     .with_axiom(associativity)
+//!     .conjecture(left_identity)
+//!     .solve();
+//!
+//! assert_eq!(result, ProofRes::Proved);
+//! ```
+
 use crate::lock::synced;
 use std::{
     ffi::CString,
@@ -7,6 +149,26 @@ use vampire_sys as sys;
 
 mod lock;
 
+/// A function symbol in first-order logic.
+///
+/// Functions represent operations that take terms as arguments and produce new terms.
+/// They have a fixed arity (number of arguments). A function with arity 0 is called a
+/// constant and represents a specific object in the domain.
+///
+/// # Examples
+///
+/// ```
+/// use vampire::Function;
+///
+/// // Create a constant (0-ary function)
+/// let socrates = Function::constant("socrates");
+///
+/// // Create a unary function
+/// let successor = Function::new("succ", 1);
+///
+/// // Create a binary function
+/// let add = Function::new("add", 2);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Function {
     id: u32,
@@ -14,6 +176,33 @@ pub struct Function {
 }
 
 impl Function {
+    /// Creates a new function symbol with the given name and arity.
+    ///
+    /// Calling this method multiple times with the same name and arity will return
+    /// the same function symbol. It is safe to call this with the same name but
+    /// different arities - they will be treated as distinct function symbols.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the function symbol
+    /// * `arity` - The number of arguments this function takes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Function;
+    ///
+    /// let mult = Function::new("mult", 2);
+    /// assert_eq!(mult.arity(), 2);
+    ///
+    /// // Same name and arity returns the same symbol
+    /// let mult2 = Function::new("mult", 2);
+    /// assert_eq!(mult, mult2);
+    ///
+    /// // Same name but different arity is a different symbol
+    /// let mult3 = Function::new("mult", 3);
+    /// assert_ne!(mult.arity(), mult3.arity());
+    /// ```
     pub fn new(name: &str, arity: u32) -> Self {
         synced(|_| {
             let name = CString::new(name).expect("valid c string");
@@ -24,19 +213,87 @@ impl Function {
             }
         })
     }
+
+    /// Returns the arity (number of arguments) of this function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Function;
+    ///
+    /// let f = Function::new("f", 3);
+    /// assert_eq!(f.arity(), 3);
+    /// ```
     pub fn arity(&self) -> u32 {
         self.arity
     }
 
+    /// Creates a constant term (0-ary function).
+    ///
+    /// This is a convenience method equivalent to `Function::new(name, 0).with(&[])`.
+    /// Constants represent specific objects in the domain.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the constant
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Function;
+    ///
+    /// let socrates = Function::constant("socrates");
+    /// let zero = Function::constant("0");
+    /// ```
     pub fn constant(name: &str) -> Term {
         Self::new(name, 0).with(&[])
     }
 
+    /// Applies this function to the given arguments, creating a term.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of arguments does not match the function's arity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Term};
+    ///
+    /// let add = Function::new("add", 2);
+    /// let x = Term::new_var(0);
+    /// let y = Term::new_var(1);
+    ///
+    /// // Create the term add(x, y)
+    /// let sum = add.with(&[x, y]);
+    /// ```
     pub fn with(&self, args: &[Term]) -> Term {
         Term::new_function(*self, args)
     }
 }
 
+/// A predicate symbol in first-order logic.
+///
+/// Predicates represent relations or properties that can be true or false.
+/// They take terms as arguments and produce formulas. Like functions, predicates
+/// have a fixed arity.
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate};
+///
+/// // Unary predicate (property)
+/// let is_mortal = Predicate::new("mortal", 1);
+/// let socrates = Function::constant("socrates");
+/// let formula = is_mortal.with(&[socrates]); // mortal(socrates)
+///
+/// // Binary predicate (relation)
+/// let loves = Predicate::new("loves", 2);
+/// let alice = Function::constant("alice");
+/// let bob = Function::constant("bob");
+/// let formula = loves.with(&[alice, bob]); // loves(alice, bob)
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Predicate {
     id: u32,
@@ -44,6 +301,33 @@ pub struct Predicate {
 }
 
 impl Predicate {
+    /// Creates a new predicate symbol with the given name and arity.
+    ///
+    /// Calling this method multiple times with the same name and arity will return
+    /// the same predicate symbol. It is safe to call this with the same name but
+    /// different arities - they will be treated as distinct predicate symbols.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the predicate symbol
+    /// * `arity` - The number of arguments this predicate takes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Predicate;
+    ///
+    /// let edge = Predicate::new("edge", 2);
+    /// assert_eq!(edge.arity(), 2);
+    ///
+    /// // Same name and arity returns the same symbol
+    /// let edge2 = Predicate::new("edge", 2);
+    /// assert_eq!(edge, edge2);
+    ///
+    /// // Same name but different arity is a different symbol
+    /// let edge3 = Predicate::new("edge", 3);
+    /// assert_ne!(edge.arity(), edge3.arity());
+    /// ```
     pub fn new(name: &str, arity: u32) -> Self {
         // TODO: predicate/term with same name already exists?
 
@@ -57,15 +341,64 @@ impl Predicate {
         })
     }
 
+    /// Returns the arity (number of arguments) of this predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Predicate;
+    ///
+    /// let p = Predicate::new("p", 2);
+    /// assert_eq!(p.arity(), 2);
+    /// ```
     pub fn arity(&self) -> u32 {
         self.arity
     }
 
+    /// Applies this predicate to the given arguments, creating a formula.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of arguments does not match the predicate's arity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate};
+    ///
+    /// let mortal = Predicate::new("mortal", 1);
+    /// let socrates = Function::constant("socrates");
+    ///
+    /// // Create the formula mortal(socrates)
+    /// let formula = mortal.with(&[socrates]);
+    /// ```
     pub fn with(&self, args: &[Term]) -> Formula {
         Formula::new_predicate(*self, args)
     }
 }
 
+/// A term in first-order logic.
+///
+/// Terms represent objects in the domain of discourse. A term can be:
+/// - A constant: `socrates`
+/// - A variable: `x`
+/// - A function application: `add(x, y)`
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Term};
+///
+/// // Create a constant
+/// let zero = Function::constant("0");
+///
+/// // Create a variable
+/// let x = Term::new_var(0);
+///
+/// // Create a function application
+/// let succ = Function::new("succ", 1);
+/// let one = succ.with(&[zero]);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Term {
@@ -73,6 +406,25 @@ pub struct Term {
 }
 
 impl Term {
+    /// Creates a term by applying a function to arguments.
+    ///
+    /// This is typically called via [`Function::with`] rather than directly.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of arguments does not match the function's arity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Term};
+    ///
+    /// let add = Function::new("add", 2);
+    /// let x = Term::new_var(0);
+    /// let y = Term::new_var(1);
+    ///
+    /// let sum = Term::new_function(add, &[x, y]);
+    /// ```
     pub fn new_function(func: Function, args: &[Term]) -> Self {
         // TODO: try_new_function?
         assert!(args.len() == func.arity() as usize);
@@ -85,6 +437,24 @@ impl Term {
         })
     }
 
+    /// Creates a variable with the given index.
+    ///
+    /// Variables are typically used within quantified formulas. The index should be
+    /// unique within a formula. For automatic variable management, consider using
+    /// the [`forall`] and [`exists`] helper functions instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx` - The unique index for this variable
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Term;
+    ///
+    /// let x = Term::new_var(0);
+    /// let y = Term::new_var(1);
+    /// ```
     pub fn new_var(idx: u32) -> Self {
         synced(|info| unsafe {
             info.free_var = info.free_var.max(idx + 1);
@@ -93,6 +463,22 @@ impl Term {
         })
     }
 
+    /// Creates a fresh variable with an automatically assigned index.
+    ///
+    /// Returns both the variable term and its index. This is primarily used internally
+    /// by the [`forall`] and [`exists`] functions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Term;
+    ///
+    /// let (x, idx) = Term::free_var();
+    /// assert_eq!(idx, 0);
+    ///
+    /// let (y, idx2) = Term::free_var();
+    /// assert_eq!(idx2, 1);
+    /// ```
     pub fn free_var() -> (Self, u32) {
         synced(|info| unsafe {
             let idx = info.free_var;
@@ -102,11 +488,66 @@ impl Term {
         })
     }
 
+    /// Creates an equality formula between this term and another.
+    ///
+    /// # Arguments
+    ///
+    /// * `rhs` - The right-hand side of the equality
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, forall};
+    ///
+    /// let succ = Function::new("succ", 1);
+    /// let zero = Function::constant("0");
+    ///
+    /// // ∀x. succ(x) = succ(x)
+    /// let reflexive = forall(|x| {
+    ///     let sx = succ.with(&[x]);
+    ///     sx.eq(sx)
+    /// });
+    /// ```
     pub fn eq(&self, rhs: Term) -> Formula {
         Formula::new_eq(*self, rhs)
     }
 }
 
+/// A formula in first-order logic.
+///
+/// Formulas are logical statements that can be true or false. They include:
+/// - Atomic formulas: predicates and equalities
+/// - Logical connectives: AND (`&`), OR (`|`), NOT (`!`), implication (`>>`), biconditional
+/// - Quantifiers: universal (`∀`) and existential (`∃`)
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate, forall};
+///
+/// let p = Predicate::new("P", 1);
+/// let q = Predicate::new("Q", 1);
+/// let x = Function::constant("x");
+///
+/// // Atomic formula
+/// let px = p.with(&[x]);
+/// let qx = q.with(&[x]);
+///
+/// // Conjunction: P(x) ∧ Q(x)
+/// let both = px & qx;
+///
+/// // Disjunction: P(x) ∨ Q(x)
+/// let either = px | qx;
+///
+/// // Implication: P(x) → Q(x)
+/// let implies = px >> qx;
+///
+/// // Negation: ¬P(x)
+/// let not_px = !px;
+///
+/// // Universal quantification: ∀x. P(x)
+/// let all = forall(|x| p.with(&[x]));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Formula {
@@ -114,6 +555,24 @@ pub struct Formula {
 }
 
 impl Formula {
+    /// Creates an atomic formula by applying a predicate to arguments.
+    ///
+    /// This is typically called via [`Predicate::with`] rather than directly.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of arguments does not match the predicate's arity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Formula};
+    ///
+    /// let mortal = Predicate::new("mortal", 1);
+    /// let socrates = Function::constant("socrates");
+    ///
+    /// let formula = Formula::new_predicate(mortal, &[socrates]);
+    /// ```
     pub fn new_predicate(pred: Predicate, args: &[Term]) -> Self {
         assert!(args.len() == pred.arity() as usize);
 
@@ -126,6 +585,20 @@ impl Formula {
         })
     }
 
+    /// Creates an equality formula between two terms.
+    ///
+    /// This is typically called via [`Term::eq`] rather than directly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Formula};
+    ///
+    /// let x = Function::constant("x");
+    /// let y = Function::constant("y");
+    ///
+    /// let eq = Formula::new_eq(x, y);
+    /// ```
     pub fn new_eq(lhs: Term, rhs: Term) -> Self {
         synced(|_| unsafe {
             let lit = sys::vampire_eq(true, lhs.id, rhs.id);
@@ -134,6 +607,27 @@ impl Formula {
         })
     }
 
+    /// Creates a conjunction (AND) of multiple formulas.
+    ///
+    /// For two formulas, the `&` operator is more convenient.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Formula};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let q = Predicate::new("Q", 1);
+    /// let r = Predicate::new("R", 1);
+    /// let x = Function::constant("x");
+    ///
+    /// // P(x) ∧ Q(x) ∧ R(x)
+    /// let all_three = Formula::new_and(&[
+    ///     p.with(&[x]),
+    ///     q.with(&[x]),
+    ///     r.with(&[x]),
+    /// ]);
+    /// ```
     pub fn new_and(formulas: &[Formula]) -> Self {
         synced(|_| unsafe {
             let formula_count = formulas.len();
@@ -143,6 +637,27 @@ impl Formula {
         })
     }
 
+    /// Creates a disjunction (OR) of multiple formulas.
+    ///
+    /// For two formulas, the `|` operator is more convenient.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Formula};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let q = Predicate::new("Q", 1);
+    /// let r = Predicate::new("R", 1);
+    /// let x = Function::constant("x");
+    ///
+    /// // P(x) ∨ Q(x) ∨ R(x)
+    /// let any = Formula::new_or(&[
+    ///     p.with(&[x]),
+    ///     q.with(&[x]),
+    ///     r.with(&[x]),
+    /// ]);
+    /// ```
     pub fn new_or(formulas: &[Formula]) -> Self {
         synced(|_| unsafe {
             let formula_count = formulas.len();
@@ -152,6 +667,20 @@ impl Formula {
         })
     }
 
+    /// Creates a negation (NOT) of a formula.
+    ///
+    /// The `!` operator is more convenient than calling this directly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Formula};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let x = Function::constant("x");
+    ///
+    /// let not_p = Formula::new_not(p.with(&[x]));
+    /// ```
     pub fn new_not(formula: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_not(formula.id) };
@@ -159,6 +688,26 @@ impl Formula {
         })
     }
 
+    /// Creates a universally quantified formula.
+    ///
+    /// The [`forall`] helper function provides a more ergonomic interface.
+    ///
+    /// # Arguments
+    ///
+    /// * `var` - The index of the variable to quantify
+    /// * `f` - The formula body
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Formula, Term};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let x = Term::new_var(0);
+    ///
+    /// // ∀x. P(x)
+    /// let all_p = Formula::new_forall(0, p.with(&[x]));
+    /// ```
     pub fn new_forall(var: u32, f: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_forall(var, f.id) };
@@ -166,6 +715,26 @@ impl Formula {
         })
     }
 
+    /// Creates an existentially quantified formula.
+    ///
+    /// The [`exists`] helper function provides a more ergonomic interface.
+    ///
+    /// # Arguments
+    ///
+    /// * `var` - The index of the variable to quantify
+    /// * `f` - The formula body
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Formula, Term};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let x = Term::new_var(0);
+    ///
+    /// // ∃x. P(x)
+    /// let some_p = Formula::new_exists(0, p.with(&[x]));
+    /// ```
     pub fn new_exists(var: u32, f: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_exists(var, f.id) };
@@ -173,6 +742,26 @@ impl Formula {
         })
     }
 
+    /// Creates an implication from this formula to another.
+    ///
+    /// The `>>` operator is more convenient than calling this directly.
+    ///
+    /// # Arguments
+    ///
+    /// * `rhs` - The consequent (right-hand side) of the implication
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let q = Predicate::new("Q", 1);
+    /// let x = Function::constant("x");
+    ///
+    /// // P(x) → Q(x)
+    /// let implication = p.with(&[x]).imp(q.with(&[x]));
+    /// ```
     pub fn imp(&self, rhs: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_imp(self.id, rhs.id) };
@@ -180,6 +769,27 @@ impl Formula {
         })
     }
 
+    /// Creates a biconditional (if and only if) between this formula and another.
+    ///
+    /// A biconditional `P ↔ Q` is true when both formulas have the same truth value.
+    ///
+    /// # Arguments
+    ///
+    /// * `rhs` - The right-hand side of the biconditional
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, forall};
+    ///
+    /// let even = Predicate::new("even", 1);
+    /// let div_by_2 = Predicate::new("divisible_by_2", 1);
+    ///
+    /// // ∀x. even(x) ↔ divisible_by_2(x)
+    /// let equiv = forall(|x| {
+    ///     even.with(&[x]).iff(div_by_2.with(&[x]))
+    /// });
+    /// ```
     pub fn iff(&self, rhs: Formula) -> Self {
         synced(|_| {
             let id = unsafe { sys::vampire_iff(self.id, rhs.id) };
@@ -188,18 +798,105 @@ impl Formula {
     }
 }
 
+/// Creates a universally quantified formula using a closure.
+///
+/// This is the most ergonomic way to create formulas with universal quantification.
+/// The closure receives a fresh variable term that can be used in the formula body.
+///
+/// # Arguments
+///
+/// * `f` - A closure that takes a [`Term`] representing the quantified variable and
+///         returns a [`Formula`]
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate, forall};
+///
+/// let p = Predicate::new("P", 1);
+///
+/// // ∀x. P(x)
+/// let all_p = forall(|x| p.with(&[x]));
+///
+/// // Nested quantifiers: ∀x. ∀y. P(x, y)
+/// let p2 = Predicate::new("P", 2);
+/// let all_xy = forall(|x| forall(|y| p2.with(&[x, y])));
+/// ```
+///
+/// # Complex Example
+///
+/// ```
+/// use vampire::{Function, Predicate, forall};
+///
+/// let mortal = Predicate::new("mortal", 1);
+/// let human = Predicate::new("human", 1);
+///
+/// // ∀x. human(x) → mortal(x)
+/// let humans_are_mortal = forall(|x| {
+///     human.with(&[x]) >> mortal.with(&[x])
+/// });
+/// ```
 pub fn forall<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
     let (var, var_idx) = Term::free_var();
     let f = f(var);
     Formula::new_forall(var_idx, f)
 }
 
+/// Creates an existentially quantified formula using a closure.
+///
+/// This is the most ergonomic way to create formulas with existential quantification.
+/// The closure receives a fresh variable term that can be used in the formula body.
+///
+/// # Arguments
+///
+/// * `f` - A closure that takes a [`Term`] representing the quantified variable and
+///         returns a [`Formula`]
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate, exists};
+///
+/// let prime = Predicate::new("prime", 1);
+///
+/// // ∃x. prime(x) - "There exists a prime number"
+/// let some_prime = exists(|x| prime.with(&[x]));
+///
+/// // ∃x. ∃y. edge(x, y) - "There exists an edge"
+/// let edge = Predicate::new("edge", 2);
+/// let has_edge = exists(|x| exists(|y| edge.with(&[x, y])));
+/// ```
+///
+/// # Complex Example
+///
+/// ```
+/// use vampire::{Function, Predicate, exists, forall};
+///
+/// let greater = Predicate::new("greater", 2);
+///
+/// // ∃x. ∀y. greater(x, y) - "There exists a maximum element"
+/// let has_maximum = exists(|x| forall(|y| greater.with(&[x, y])));
+/// ```
 pub fn exists<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
     let (var, var_idx) = Term::free_var();
     let f = f(var);
     Formula::new_exists(var_idx, f)
 }
 
+/// Implements the `&` operator for conjunction (AND).
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate};
+///
+/// let p = Predicate::new("P", 1);
+/// let q = Predicate::new("Q", 1);
+/// let x = Function::constant("x");
+///
+/// // P(x) ∧ Q(x)
+/// let both = p.with(&[x]) & q.with(&[x]);
+/// ```
 impl BitAnd for Formula {
     type Output = Formula;
 
@@ -208,6 +905,20 @@ impl BitAnd for Formula {
     }
 }
 
+/// Implements the `|` operator for disjunction (OR).
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate};
+///
+/// let p = Predicate::new("P", 1);
+/// let q = Predicate::new("Q", 1);
+/// let x = Function::constant("x");
+///
+/// // P(x) ∨ Q(x)
+/// let either = p.with(&[x]) | q.with(&[x]);
+/// ```
 impl BitOr for Formula {
     type Output = Formula;
 
@@ -216,6 +927,19 @@ impl BitOr for Formula {
     }
 }
 
+/// Implements the `!` operator for negation (NOT).
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate};
+///
+/// let p = Predicate::new("P", 1);
+/// let x = Function::constant("x");
+///
+/// // ¬P(x)
+/// let not_p = !p.with(&[x]);
+/// ```
 impl Not for Formula {
     type Output = Formula;
 
@@ -224,6 +948,20 @@ impl Not for Formula {
     }
 }
 
+/// Implements the `>>` operator for implication.
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate};
+///
+/// let p = Predicate::new("P", 1);
+/// let q = Predicate::new("Q", 1);
+/// let x = Function::constant("x");
+///
+/// // P(x) → Q(x)
+/// let implies = p.with(&[x]) >> q.with(&[x]);
+/// ```
 impl Shr for Formula {
     type Output = Formula;
 
@@ -232,6 +970,49 @@ impl Shr for Formula {
     }
 }
 
+/// A theorem proving problem consisting of axioms and an optional conjecture.
+///
+/// A [`Problem`] is constructed by adding axioms (assumed to be true) and optionally
+/// a conjecture (the statement to be proved). The problem is then solved by calling
+/// [`Problem::solve`], which invokes the Vampire theorem prover.
+///
+/// # Examples
+///
+/// ## Basic Usage
+///
+/// ```
+/// use vampire::{Function, Predicate, Problem, ProofRes, forall};
+///
+/// let mortal = Predicate::new("mortal", 1);
+/// let human = Predicate::new("human", 1);
+/// let socrates = Function::constant("socrates");
+///
+/// let result = Problem::new()
+///     .with_axiom(human.with(&[socrates]))
+///     .with_axiom(forall(|x| human.with(&[x]) >> mortal.with(&[x])))
+///     .conjecture(mortal.with(&[socrates]))
+///     .solve();
+///
+/// assert_eq!(result, ProofRes::Proved);
+/// ```
+///
+/// ## Without Conjecture
+///
+/// You can also create problems without a conjecture to check satisfiability:
+///
+/// ```
+/// use vampire::{Function, Predicate, Problem};
+///
+/// let p = Predicate::new("P", 1);
+/// let x = Function::constant("x");
+///
+/// let result = Problem::new()
+///     .with_axiom(p.with(&[x]))
+///     .with_axiom(!p.with(&[x]))  // Contradiction
+///     .solve();
+///
+/// // This should be unsatisfiable
+/// ```
 #[derive(Debug, Clone)]
 pub struct Problem {
     axioms: Vec<Formula>,
@@ -239,6 +1020,15 @@ pub struct Problem {
 }
 
 impl Problem {
+    /// Creates a new empty problem with no axioms or conjecture.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::Problem;
+    ///
+    /// let problem = Problem::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             axioms: Vec::new(),
@@ -246,16 +1036,91 @@ impl Problem {
         }
     }
 
+    /// Adds an axiom to the problem.
+    ///
+    /// Axioms are formulas assumed to be true. The prover will use these axioms
+    /// to attempt to prove the conjecture (if one is provided).
+    ///
+    /// This method consumes `self` and returns a new [`Problem`], allowing for
+    /// method chaining.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The axiom formula to add
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Problem, forall};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let q = Predicate::new("Q", 1);
+    ///
+    /// let problem = Problem::new()
+    ///     .with_axiom(forall(|x| p.with(&[x])))
+    ///     .with_axiom(forall(|x| p.with(&[x]) >> q.with(&[x])));
+    /// ```
     pub fn with_axiom(mut self, f: Formula) -> Self {
         self.axioms.push(f);
         self
     }
 
+    /// Sets the conjecture for the problem.
+    ///
+    /// The conjecture is the statement that the prover will attempt to prove from
+    /// the axioms. A problem can have at most one conjecture.
+    ///
+    /// This method consumes `self` and returns a new [`Problem`], allowing for
+    /// method chaining.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The conjecture formula
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Problem, forall};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let q = Predicate::new("Q", 1);
+    ///
+    /// let problem = Problem::new()
+    ///     .with_axiom(forall(|x| p.with(&[x]) >> q.with(&[x])))
+    ///     .conjecture(forall(|x| q.with(&[x])));  // Try to prove this
+    /// ```
     pub fn conjecture(mut self, f: Formula) -> Self {
         self.conjecture = Some(f);
         self
     }
 
+    /// Solves the problem using the Vampire theorem prover.
+    ///
+    /// This method consumes the problem and invokes Vampire to either prove the
+    /// conjecture from the axioms, find a counterexample, or determine that the
+    /// result is unknown.
+    ///
+    /// # Returns
+    ///
+    /// A [`ProofRes`] indicating whether the conjecture was proved, found to be
+    /// unprovable, or whether the result is unknown (due to timeout, memory limits,
+    /// or incompleteness).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire::{Function, Predicate, Problem, ProofRes, forall};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let x = Function::constant("x");
+    ///
+    /// let result = Problem::new()
+    ///     .with_axiom(p.with(&[x]))
+    ///     .conjecture(p.with(&[x]))
+    ///     .solve();
+    ///
+    /// assert_eq!(result, ProofRes::Proved);
+    /// ```
     pub fn solve(self) -> ProofRes {
         synced(|_| unsafe {
             let mut units = Vec::new();
@@ -278,18 +1143,86 @@ impl Problem {
     }
 }
 
+/// The result of attempting to prove a theorem.
+///
+/// After calling [`Problem::solve`], Vampire returns one of three possible results:
+/// - [`ProofRes::Proved`]: The conjecture was successfully proved from the axioms
+/// - [`ProofRes::Unprovable`]: The axioms are insufficient to prove the conjecture
+/// - [`ProofRes::Unknown`]: Vampire could not determine if the axioms imply the conjecture
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{Function, Predicate, Problem, ProofRes, forall};
+///
+/// let p = Predicate::new("P", 1);
+/// let x = Function::constant("x");
+///
+/// let result = Problem::new()
+///     .with_axiom(p.with(&[x]))
+///     .conjecture(p.with(&[x]))
+///     .solve();
+///
+/// match result {
+///     ProofRes::Proved => println!("Theorem proved!"),
+///     ProofRes::Unprovable => println!("Counterexample found"),
+///     ProofRes::Unknown(reason) => println!("Unknown: {:?}", reason),
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProofRes {
+    /// The conjecture was successfully proved from the axioms.
     Proved,
+
+    /// The axioms are insufficient to prove the conjecture.
+    ///
+    /// Vampire has determined that the given axioms do not imply the conjecture.
+    /// Note that this does not mean the conjecture is false - it could still be
+    /// true or false, but the provided axioms alone cannot establish it.
     Unprovable,
+
+    /// Vampire could not determine whether the axioms imply the conjecture.
+    ///
+    /// This can happen for several reasons, detailed in [`UnknownReason`].
     Unknown(UnknownReason),
 }
 
+/// The reason why a proof result is unknown.
+///
+/// When Vampire cannot determine whether a conjecture is provable, it returns
+/// [`ProofRes::Unknown`] with one of these reasons.
+///
+/// # Examples
+///
+/// ```
+/// use vampire::{ProofRes, UnknownReason};
+///
+/// let result = ProofRes::Unknown(UnknownReason::Timeout);
+///
+/// if let ProofRes::Unknown(reason) = result {
+///     match reason {
+///         UnknownReason::Timeout => println!("Ran out of time"),
+///         UnknownReason::MemoryLimit => println!("Ran out of memory"),
+///         UnknownReason::Incomplete => println!("Problem uses incomplete logic"),
+///         UnknownReason::Unknown => println!("Unknown reason"),
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnknownReason {
+    /// The prover exceeded its time limit before finding a proof or counterexample.
     Timeout,
+
+    /// The prover exceeded its memory limit before finding a proof or counterexample.
     MemoryLimit,
+
+    /// The problem involves features that make the logic incomplete.
+    ///
+    /// Some logical theories (e.g., higher-order logic, certain arithmetic theories)
+    /// are undecidable, meaning no algorithm can always find an answer.
     Incomplete,
+
+    /// The reason is unknown or not specified by Vampire.
     Unknown,
 }
 

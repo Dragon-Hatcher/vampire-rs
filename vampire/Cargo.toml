@@ -2,6 +2,12 @@
 name = "vampire"
 version = "0.1.0"
 edition = "2024"
+authors = ["Daniel James"]
+description = "Safe Rust bindings to the Vampire theorem prover for first-order logic"
+keywords = ["theorem-prover", "logic", "vampire", "automated-reasoning", "fol"]
+categories = ["science", "mathematics"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 vampire-sys = { path = "../vampire-sys" }
