@@ -139,6 +139,15 @@
 //!
 //! assert_eq!(result, ProofRes::Proved);
 //! ```
+//!
+//! # License
+//!
+//! This Rust crate is dual-licensed under MIT OR Apache-2.0 (your choice).
+//!
+//! The underlying Vampire theorem prover is licensed under the BSD 3-Clause License.
+//! When distributing applications using this crate, you must comply with both
+//! licenses. See the [Vampire LICENCE](https://github.com/vprover/vampire/blob/master/LICENCE)
+//! for details on the Vampire license requirements.
 
 use crate::lock::synced;
 use std::{

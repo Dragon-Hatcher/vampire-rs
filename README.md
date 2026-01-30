@@ -91,12 +91,30 @@ vampire-rs/
 
 ## License
 
-Licensed under either of:
+### Rust Bindings
+
+The Rust bindings (`vampire` and `vampire-sys` crates) are licensed under either of:
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
+
+### Vampire Theorem Prover
+
+The underlying Vampire theorem prover library is licensed under the **BSD 3-Clause License**.
+
+```
+Vampire is copyright (C) 2020 by its authors and contributors and their
+institutional affiliations. All rights reserved.
+```
+
+See [vampire-lib/LICENCE](vampire-lib/LICENCE) for the complete Vampire license text.
+
+When distributing applications that use this crate, you must comply with the Vampire BSD 3-Clause license requirements, which include:
+- Retaining the Vampire copyright notice
+- Reproducing the Vampire license in your documentation/distribution
+- Not using the names of Vampire contributors to endorse your product without permission
 
 ## Resources
 

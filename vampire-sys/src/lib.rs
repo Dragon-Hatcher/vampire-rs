@@ -32,6 +32,14 @@
 //! - Linux (links against libstdc++)
 //! - macOS (links against libc++)
 //! - Other platforms may work but are untested
+//!
+//! # License
+//!
+//! This FFI crate is dual-licensed under MIT OR Apache-2.0 (your choice).
+//!
+//! The Vampire theorem prover library that this crate links to is licensed under
+//! the BSD 3-Clause License. Applications using this crate must comply with both
+//! the Rust bindings license and the Vampire BSD 3-Clause license.
 
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]

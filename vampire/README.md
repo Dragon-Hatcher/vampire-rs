@@ -242,9 +242,17 @@ When you call `Problem::solve()`, you get one of three results:
 
 ## License
 
-Licensed under either of:
+### Rust Bindings
+
+This Rust crate is licensed under either of:
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
+
+### Vampire Theorem Prover
+
+The underlying Vampire theorem prover library is licensed under the **BSD 3-Clause License**. See the [Vampire LICENCE file](https://github.com/vprover/vampire/blob/master/LICENCE) for details.
+
+When distributing applications using this crate, you must comply with both the Rust bindings license (your choice of MIT or Apache-2.0) and the Vampire BSD 3-Clause license requirements.
