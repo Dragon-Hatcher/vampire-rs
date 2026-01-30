@@ -158,6 +158,42 @@ use vampire_sys as sys;
 
 mod lock;
 
+/// Trait for types that can be converted into term arguments.
+///
+/// This trait allows `.with()` methods on [`Function`] and [`Predicate`] to accept
+/// different argument formats for convenience:
+/// - Single term: `f.with(x)`
+/// - Array: `f.with([x, y])`
+/// - Slice: `f.with(&[x, y])`
+pub trait IntoTermArgs {
+    /// Convert this type into a slice of terms.
+    fn as_slice(&self) -> &[Term];
+}
+
+impl IntoTermArgs for Term {
+    fn as_slice(&self) -> &[Term] {
+        std::slice::from_ref(self)
+    }
+}
+
+impl<const N: usize> IntoTermArgs for [Term; N] {
+    fn as_slice(&self) -> &[Term] {
+        self
+    }
+}
+
+impl<const N: usize> IntoTermArgs for &[Term; N] {
+    fn as_slice(&self) -> &[Term] {
+        *self
+    }
+}
+
+impl IntoTermArgs for [Term] {
+    fn as_slice(&self) -> &[Term] {
+        self
+    }
+}
+
 /// A function symbol in first-order logic.
 ///
 /// Functions represent operations that take terms as arguments and produce new terms.
@@ -255,10 +291,15 @@ impl Function {
     /// let zero = Function::constant("0");
     /// ```
     pub fn constant(name: &str) -> Term {
-        Self::new(name, 0).with(&[])
+        Self::new(name, 0).with([])
     }
 
     /// Applies this function to the given arguments, creating a term.
+    ///
+    /// This method accepts multiple argument formats for convenience:
+    /// - Single term: `f.with(x)`
+    /// - Array: `f.with([x, y])`
+    /// - Slice: `f.with(&[x, y])`
     ///
     /// # Panics
     ///
@@ -273,11 +314,16 @@ impl Function {
     /// let x = Term::new_var(0);
     /// let y = Term::new_var(1);
     ///
-    /// // Create the term add(x, y)
-    /// let sum = add.with(&[x, y]);
+    /// // All of these work:
+    /// let sum1 = add.with([x, y]);      // Array
+    /// let sum2 = add.with(&[x, y]);     // Slice
+    ///
+    /// // Single argument:
+    /// let succ = Function::new("succ", 1);
+    /// let sx = succ.with(x);
     /// ```
-    pub fn with(&self, args: &[Term]) -> Term {
-        Term::new_function(*self, args)
+    pub fn with(&self, args: impl IntoTermArgs) -> Term {
+        Term::new_function(*self, args.as_slice())
     }
 }
 
@@ -366,6 +412,11 @@ impl Predicate {
 
     /// Applies this predicate to the given arguments, creating a formula.
     ///
+    /// This method accepts multiple argument formats for convenience:
+    /// - Single term: `p.with(x)`
+    /// - Array: `p.with([x, y])`
+    /// - Slice: `p.with(&[x, y])`
+    ///
     /// # Panics
     ///
     /// Panics if the number of arguments does not match the predicate's arity.
@@ -378,11 +429,19 @@ impl Predicate {
     /// let mortal = Predicate::new("mortal", 1);
     /// let socrates = Function::constant("socrates");
     ///
-    /// // Create the formula mortal(socrates)
-    /// let formula = mortal.with(&[socrates]);
+    /// // All of these work:
+    /// let formula1 = mortal.with(socrates);     // Single term
+    /// let formula2 = mortal.with([socrates]);   // Array
+    /// let formula3 = mortal.with(&[socrates]);  // Slice
+    ///
+    /// // Multiple arguments:
+    /// let edge = Predicate::new("edge", 2);
+    /// let a = Function::constant("a");
+    /// let b = Function::constant("b");
+    /// let e = edge.with([a, b]);
     /// ```
-    pub fn with(&self, args: &[Term]) -> Formula {
-        Formula::new_predicate(*self, args)
+    pub fn with(&self, args: impl IntoTermArgs) -> Formula {
+        Formula::new_predicate(*self, args.as_slice())
     }
 }
 
@@ -1260,20 +1319,40 @@ mod test {
     use crate::{Function, Predicate, Problem, ProofRes, Term, exists, forall};
 
     #[test]
+    fn test_with_syntax() {
+        // Test that all three calling styles work
+        let f = Function::new("f", 2);
+        let p = Predicate::new("p", 1);
+        let x = Term::new_var(0);
+        let y = Term::new_var(1);
+
+        // Test arrays
+        let _t1 = f.with([x, y]);
+        let _f1 = p.with([x]);
+
+        // Test slice references
+        let _t2 = f.with(&[x, y]);
+        let _f2 = p.with(&[x]);
+
+        // Test single term
+        let _f3 = p.with(x);
+    }
+
+    #[test]
     fn socrates_proof() {
         // Classic Socrates syllogism
         let is_mortal = Predicate::new("mortal", 1);
         let is_man = Predicate::new("man", 1);
 
         // All men are mortal
-        let men_are_mortal = forall(|x| is_man.with(&[x]) >> is_mortal.with(&[x]));
+        let men_are_mortal = forall(|x| is_man.with(x) >> is_mortal.with(x));
 
         // Socrates is a man
         let socrates = Function::constant("socrates");
-        let socrates_is_man = is_man.with(&[socrates]);
+        let socrates_is_man = is_man.with(socrates);
 
         // Therefore, Socrates is mortal
-        let socrates_is_mortal = is_mortal.with(&[socrates]);
+        let socrates_is_mortal = is_mortal.with(socrates);
 
         let solution = Problem::new()
             .with_axiom(socrates_is_man)
@@ -1304,22 +1383,22 @@ mod test {
 
         // Axiom 1: Direct edges are paths
         // ∀x,y. edge(x,y) → path(x,y)
-        let direct_edge_is_path = forall(|x| forall(|y| edge.with(&[x, y]) >> path.with(&[x, y])));
+        let direct_edge_is_path = forall(|x| forall(|y| edge.with([x, y]) >> path.with([x, y])));
 
         // Axiom 2: Transitivity of paths
         // ∀x,y,z. path(x,y) ∧ path(y,z) → path(x,z)
         let path_transitivity = forall(|x| {
-            forall(|y| forall(|z| (path.with(&[x, y]) & path.with(&[y, z])) >> path.with(&[x, z])))
+            forall(|y| forall(|z| (path.with([x, y]) & path.with([y, z])) >> path.with([x, z])))
         });
 
         // Concrete edges in the graph
-        let edge_ab = edge.with(&[a, b]);
-        let edge_bc = edge.with(&[b, c]);
-        let edge_cd = edge.with(&[c, d]);
-        let edge_de = edge.with(&[d, e]);
+        let edge_ab = edge.with([a, b]);
+        let edge_bc = edge.with([b, c]);
+        let edge_cd = edge.with([c, d]);
+        let edge_de = edge.with([d, e]);
 
         // Conjecture: there is a path from a to e
-        let conjecture = path.with(&[a, e]);
+        let conjecture = path.with([a, e]);
 
         let solution = Problem::new()
             .with_axiom(direct_edge_is_path)
@@ -1348,14 +1427,14 @@ mod test {
         let one = Function::constant("1");
 
         // Helper to make multiplication more readable
-        let mul = |x: Term, y: Term| -> Term { mult.with(&[x, y]) };
+        let mul = |x: Term, y: Term| -> Term { mult.with([x, y]) };
 
         // Axiom 1: Right identity - ∀x. x * 1 = x
         let right_identity = forall(|x| mul(x, one).eq(x));
 
         // Axiom 2: Right inverse - ∀x. x * inv(x) = 1
         let right_inverse = forall(|x| {
-            let inv_x = inv.with(&[x]);
+            let inv_x = inv.with(x);
             mul(x, inv_x).eq(one)
         });
 
@@ -1384,14 +1463,14 @@ mod test {
         let one = Function::constant("1");
 
         // Helper to make multiplication more readable
-        let mul = |x: Term, y: Term| -> Term { mult.with(&[x, y]) };
+        let mul = |x: Term, y: Term| -> Term { mult.with([x, y]) };
 
         // Group Axiom 1: Right identity - ∀x. x * 1 = x
         let right_identity = forall(|x| mul(x, one).eq(x));
 
         // Group Axiom 2: Right inverse - ∀x. x * inv(x) = 1
         let right_inverse = forall(|x| {
-            let inv_x = inv.with(&[x]);
+            let inv_x = inv.with(x);
             mul(x, inv_x).eq(one)
         });
 
@@ -1403,31 +1482,31 @@ mod test {
         let h = Predicate::new("h", 1);
 
         // Any subgroup contains the identity
-        let h_ident = h.with(&[one]);
+        let h_ident = h.with(one);
 
         // And is closed under multiplication
         let h_mul_closed =
-            forall(|x| forall(|y| (h.with(&[x]) & h.with(&[y])) >> h.with(&[mul(x, y)])));
+            forall(|x| forall(|y| (h.with(x) & h.with(y)) >> h.with(mul(x, y))));
 
         // And is closed under inverse
-        let h_inv_closed = forall(|x| h.with(&[x]) >> h.with(&[inv.with(&[x])]));
+        let h_inv_closed = forall(|x| h.with(x) >> h.with(inv.with(x)));
 
         // H specifically is of order 2
         let h_index_2 = exists(|x| {
             // an element not in H
-            let not_in_h = !h.with(&[x]);
+            let not_in_h = !h.with(x);
             // but everything is in H or x H
-            let class = forall(|y| h.with(&[y]) | h.with(&[mul(inv.with(&[x]), y)]));
+            let class = forall(|y| h.with(y) | h.with(mul(inv.with(x), y)));
 
             not_in_h & class
         });
 
         // Conjecture: H is normal
         let h_normal = forall(|x| {
-            let h_x = h.with(&[x]);
+            let h_x = h.with(x);
             let conj_x = forall(|y| {
-                let y_inv = inv.with(&[y]);
-                h.with(&[mul(mul(y, x), y_inv)])
+                let y_inv = inv.with(y);
+                h.with(mul(mul(y, x), y_inv))
             });
             h_x.iff(conj_x)
         });
