@@ -1,6 +1,6 @@
 [package]
 name = "vampire-prover"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 authors = ["Daniel James"]
 description = "Safe Rust bindings to the Vampire theorem prover for first-order logic"
