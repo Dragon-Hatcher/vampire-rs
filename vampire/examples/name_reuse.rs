@@ -20,6 +20,6 @@ fn main() {
     let solution = Problem::new()
         .with_axiom(y1.with(&[]).eq(y2.with(&[y1.with(&[])])))
         .solve();
-    
+
     dbg!(solution);
 }

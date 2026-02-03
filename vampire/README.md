@@ -16,23 +16,23 @@ This crate provides a high-level, safe Rust interface to Vampire, a state-of-the
 ## Quick Start
 
 ```rust
-use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
 
 // Create predicates
 let is_mortal = Predicate::new("mortal", 1);
 let is_man = Predicate::new("man", 1);
 
 // Create a universal statement: ∀x. man(x) → mortal(x)
-let men_are_mortal = forall(|x| is_man.with(&[x]) >> is_mortal.with(&[x]));
+let men_are_mortal = forall(|x| is_man.with(x) >> is_mortal.with(x));
 
 // Create a constant
 let socrates = Function::constant("socrates");
 
 // Build and solve the problem
-let result = Problem::new()
-    .with_axiom(is_man.with(&[socrates]))       // Socrates is a man
-    .with_axiom(men_are_mortal)                  // All men are mortal
-    .conjecture(is_mortal.with(&[socrates]))    // Therefore, Socrates is mortal
+let result = Problem::new(Options::new())
+    .with_axiom(is_man.with(socrates))       // Socrates is a man
+    .with_axiom(men_are_mortal)              // All men are mortal
+    .conjecture(is_mortal.with(socrates))    // Therefore, Socrates is mortal
     .solve();
 
 assert_eq!(result, ProofRes::Proved);
@@ -57,10 +57,10 @@ let y = Term::new_var(1);
 
 // Function applications
 let succ = Function::new("succ", 1);
-let one = succ.with(&[zero]);
+let one = succ.with(zero);
 
 let add = Function::new("add", 2);
-let sum = add.with(&[x, y]);
+let sum = add.with([x, y]);
 ```
 
 **Note**: Function and predicate symbols are interned. Calling `Function::new` or `Predicate::new` with the same name and arity multiple times will return the same symbol. It's safe to use the same name with different arities - they will be treated as distinct symbols.
@@ -70,15 +70,15 @@ let sum = add.with(&[x, y]);
 Formulas are logical statements:
 
 ```rust
-use vampire_prover::{Function, Predicate, forall};
+use vampire_prover::{Function, Predicate, forall, exists};
 
 let p = Predicate::new("P", 1);
 let q = Predicate::new("Q", 1);
 let x = Function::constant("x");
 
 // Atomic formulas
-let px = p.with(&[x]);
-let qx = q.with(&[x]);
+let px = p.with(x);
+let qx = q.with(x);
 
 // Logical connectives
 let both = px & qx;          // P(x) ∧ Q(x) - conjunction
@@ -88,8 +88,8 @@ let not_px = !px;            // ¬P(x) - negation
 let equiv = px.iff(qx);      // P(x) ↔ Q(x) - biconditional
 
 // Quantifiers
-let all = forall(|x| p.with(&[x]));        // ∀x. P(x)
-let some = exists(|x| p.with(&[x]));       // ∃x. P(x)
+let all = forall(|x| p.with(x));        // ∀x. P(x)
+let some = exists(|x| p.with(x));       // ∃x. P(x)
 ```
 
 ### Equality
@@ -116,7 +116,7 @@ let reflexive = forall(|x| x.eq(x));  // ∀x. x = x
 Prove that a path exists in a graph using transitivity:
 
 ```rust
-use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
 
 let edge = Predicate::new("edge", 2);
 let path = Predicate::new("path", 2);
@@ -129,22 +129,22 @@ let d = Function::constant("d");
 
 // Axiom: Edges are paths
 let edges_are_paths = forall(|x| forall(|y|
-    edge.with(&[x, y]) >> path.with(&[x, y])
+    edge.with([x, y]) >> path.with([x, y])
 ));
 
 // Axiom: Paths are transitive
 let transitivity = forall(|x| forall(|y| forall(|z|
-    (path.with(&[x, y]) & path.with(&[y, z])) >> path.with(&[x, z])
+    (path.with([x, y]) & path.with([y, z])) >> path.with([x, z])
 )));
 
 // Prove there's a path from a to d
-let result = Problem::new()
+let result = Problem::new(Options::new())
     .with_axiom(edges_are_paths)
     .with_axiom(transitivity)
-    .with_axiom(edge.with(&[a, b]))
-    .with_axiom(edge.with(&[b, c]))
-    .with_axiom(edge.with(&[c, d]))
-    .conjecture(path.with(&[a, d]))
+    .with_axiom(edge.with([a, b]))
+    .with_axiom(edge.with([b, c]))
+    .with_axiom(edge.with([c, d]))
+    .conjecture(path.with([a, d]))
     .solve();
 
 assert_eq!(result, ProofRes::Proved);
@@ -155,17 +155,17 @@ assert_eq!(result, ProofRes::Proved);
 Prove the left identity from the standard group axioms:
 
 ```rust
-use vampire_prover::{Function, Problem, ProofRes, Term, forall};
+use vampire_prover::{Function, Problem, ProofRes, Options, Term, forall};
 
 let mult = Function::new("mult", 2);
 let inv = Function::new("inv", 1);
 let one = Function::constant("1");
 
-let mul = |x: Term, y: Term| mult.with(&[x, y]);
+let mul = |x: Term, y: Term| mult.with([x, y]);
 
 // Group axioms
 let right_identity = forall(|x| mul(x, one).eq(x));
-let right_inverse = forall(|x| mul(x, inv.with(&[x])).eq(one));
+let right_inverse = forall(|x| mul(x, inv.with(x)).eq(one));
 let associativity = forall(|x| forall(|y| forall(|z|
     mul(mul(x, y), z).eq(mul(x, mul(y, z)))
 )));
@@ -173,7 +173,7 @@ let associativity = forall(|x| forall(|y| forall(|z|
 // Prove left identity
 let left_identity = forall(|x| mul(one, x).eq(x));
 
-let result = Problem::new()
+let result = Problem::new(Options::new())
     .with_axiom(right_identity)
     .with_axiom(right_inverse)
     .with_axiom(associativity)
@@ -188,28 +188,46 @@ assert_eq!(result, ProofRes::Proved);
 Prove properties about sets:
 
 ```rust
-use vampire_prover::{Function, Predicate, Problem, forall};
+use vampire_prover::{Function, Predicate, Problem, Options, forall};
 
 let member = Predicate::new("member", 2);
 let subset = Predicate::new("subset", 2);
 
 // Define subset: A ⊆ B ↔ ∀x. x ∈ A → x ∈ B
 let subset_def = forall(|a| forall(|b|
-    subset.with(&[a, b]).iff(
-        forall(|x| member.with(&[x, a]) >> member.with(&[x, b]))
+    subset.with([a, b]).iff(
+        forall(|x| member.with([x, a]) >> member.with([x, b]))
     )
 ));
 
 // Prove subset is reflexive: ∀A. A ⊆ A
-let reflexive = forall(|a| subset.with(&[a, a]));
+let reflexive = forall(|a| subset.with([a, a]));
 
-let result = Problem::new()
+let result = Problem::new(Options::new())
     .with_axiom(subset_def)
     .conjecture(reflexive)
     .solve();
 
 assert_eq!(result, ProofRes::Proved);
 ```
+
+## Configuration Options
+
+You can configure the prover's behavior using the `Options` struct:
+
+```rust
+use vampire_prover::{Problem, Options};
+use std::time::Duration;
+
+// Default options (no timeout)
+let problem = Problem::new(Options::new());
+
+// Set a timeout
+let problem = Problem::new(Options::new().timeout(Duration::from_secs(5)));
+```
+
+Currently supported options:
+- **Timeout**: Set a time limit for the prover. If exceeded, the result will be `ProofRes::Unknown(UnknownReason::Timeout)`.
 
 ## Operators
 

@@ -21,16 +21,16 @@
 //! let is_man = Predicate::new("man", 1);
 //!
 //! // Create a universal statement: ∀x. man(x) → mortal(x)
-//! let men_are_mortal = forall(|x| is_man.with(&[x]) >> is_mortal.with(&[x]));
+//! let men_are_mortal = forall(|x| is_man.with(x) >> is_mortal.with(x));
 //!
 //! // Create a constant
 //! let socrates = Function::constant("socrates");
 //!
 //! // Build and solve the problem
 //! let result = Problem::new(Options::new())
-//!     .with_axiom(is_man.with(&[socrates]))    // Socrates is a man
+//!     .with_axiom(is_man.with(socrates))    // Socrates is a man
 //!     .with_axiom(men_are_mortal)              // All men are mortal
-//!     .conjecture(is_mortal.with(&[socrates])) // Therefore, Socrates is mortal
+//!     .conjecture(is_mortal.with(socrates)) // Therefore, Socrates is mortal
 //!     .solve();
 //!
 //! assert_eq!(result, ProofRes::Proved);
@@ -81,20 +81,20 @@
 //!
 //! // Axiom: edges are paths
 //! let edges_are_paths = forall(|x| forall(|y|
-//!     edge.with(&[x, y]) >> path.with(&[x, y])
+//!     edge.with([x, y]) >> path.with([x, y])
 //! ));
 //!
 //! // Axiom: paths are transitive
 //! let transitivity = forall(|x| forall(|y| forall(|z|
-//!     (path.with(&[x, y]) & path.with(&[y, z])) >> path.with(&[x, z])
+//!     (path.with([x, y]) & path.with([y, z])) >> path.with([x, z])
 //! )));
 //!
 //! let result = Problem::new(Options::new())
 //!     .with_axiom(edges_are_paths)
 //!     .with_axiom(transitivity)
-//!     .with_axiom(edge.with(&[a, b]))
-//!     .with_axiom(edge.with(&[b, c]))
-//!     .conjecture(path.with(&[a, c]))
+//!     .with_axiom(edge.with([a, b]))
+//!     .with_axiom(edge.with([b, c]))
+//!     .conjecture(path.with([a, c]))
 //!     .solve();
 //!
 //! assert_eq!(result, ProofRes::Proved);
@@ -111,14 +111,14 @@
 //! let inv = Function::new("inv", 1);
 //! let one = Function::constant("1");
 //!
-//! let mul = |x: Term, y: Term| mult.with(&[x, y]);
+//! let mul = |x: Term, y: Term| mult.with([x, y]);
 //!
 //! // Group Axiom 1: Right identity - ∀x. x * 1 = x
 //! let right_identity = forall(|x| mul(x, one).eq(x));
 //!
 //! // Group Axiom 2: Right inverse - ∀x. x * inv(x) = 1
 //! let right_inverse = forall(|x| {
-//!     let inv_x = inv.with(&[x]);
+//!     let inv_x = inv.with(x);
 //!     mul(x, inv_x).eq(one)
 //! });
 //!
@@ -165,7 +165,6 @@ mod lock;
 /// different argument formats for convenience:
 /// - Single term: `f.with(x)`
 /// - Array: `f.with([x, y])`
-/// - Slice: `f.with(&[x, y])`
 pub trait IntoTermArgs {
     /// Convert this type into a slice of terms.
     fn as_slice(&self) -> &[Term];
@@ -276,7 +275,7 @@ impl Function {
 
     /// Creates a constant term (0-ary function).
     ///
-    /// This is a convenience method equivalent to `Function::new(name, 0).with(&[])`.
+    /// This is a convenience method equivalent to `Function::new(name, 0).with([])`.
     /// Constants represent specific objects in the domain.
     ///
     /// # Arguments
@@ -300,7 +299,6 @@ impl Function {
     /// This method accepts multiple argument formats for convenience:
     /// - Single term: `f.with(x)`
     /// - Array: `f.with([x, y])`
-    /// - Slice: `f.with(&[x, y])`
     ///
     /// # Panics
     ///
@@ -315,9 +313,8 @@ impl Function {
     /// let x = Term::new_var(0);
     /// let y = Term::new_var(1);
     ///
-    /// // All of these work:
-    /// let sum1 = add.with([x, y]);      // Array
-    /// let sum2 = add.with(&[x, y]);     // Slice
+    /// // Multiple arguments:
+    /// let sum = add.with([x, y]);
     ///
     /// // Single argument:
     /// let succ = Function::new("succ", 1);
@@ -342,13 +339,13 @@ impl Function {
 /// // Unary predicate (property)
 /// let is_mortal = Predicate::new("mortal", 1);
 /// let socrates = Function::constant("socrates");
-/// let formula = is_mortal.with(&[socrates]); // mortal(socrates)
+/// let formula = is_mortal.with(socrates); // mortal(socrates)
 ///
 /// // Binary predicate (relation)
 /// let loves = Predicate::new("loves", 2);
 /// let alice = Function::constant("alice");
 /// let bob = Function::constant("bob");
-/// let formula = loves.with(&[alice, bob]); // loves(alice, bob)
+/// let formula = loves.with([alice, bob]); // loves(alice, bob)
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Predicate {
@@ -416,7 +413,6 @@ impl Predicate {
     /// This method accepts multiple argument formats for convenience:
     /// - Single term: `p.with(x)`
     /// - Array: `p.with([x, y])`
-    /// - Slice: `p.with(&[x, y])`
     ///
     /// # Panics
     ///
@@ -430,10 +426,8 @@ impl Predicate {
     /// let mortal = Predicate::new("mortal", 1);
     /// let socrates = Function::constant("socrates");
     ///
-    /// // All of these work:
-    /// let formula1 = mortal.with(socrates);     // Single term
-    /// let formula2 = mortal.with([socrates]);   // Array
-    /// let formula3 = mortal.with(&[socrates]);  // Slice
+    /// // Single argument:
+    /// let formula = mortal.with(socrates);
     ///
     /// // Multiple arguments:
     /// let edge = Predicate::new("edge", 2);
@@ -466,7 +460,7 @@ impl Predicate {
 ///
 /// // Create a function application
 /// let succ = Function::new("succ", 1);
-/// let one = succ.with(&[zero]);
+/// let one = succ.with(zero);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -573,7 +567,7 @@ impl Term {
     ///
     /// // ∀x. succ(x) = succ(x)
     /// let reflexive = forall(|x| {
-    ///     let sx = succ.with(&[x]);
+    ///     let sx = succ.with(x);
     ///     sx.eq(sx)
     /// });
     /// ```
@@ -599,8 +593,8 @@ impl Term {
 /// let x = Function::constant("x");
 ///
 /// // Atomic formula
-/// let px = p.with(&[x]);
-/// let qx = q.with(&[x]);
+/// let px = p.with(x);
+/// let qx = q.with(x);
 ///
 /// // Conjunction: P(x) ∧ Q(x)
 /// let both = px & qx;
@@ -615,7 +609,7 @@ impl Term {
 /// let not_px = !px;
 ///
 /// // Universal quantification: ∀x. P(x)
-/// let all = forall(|x| p.with(&[x]));
+/// let all = forall(|x| p.with(x));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -692,9 +686,9 @@ impl Formula {
     ///
     /// // P(x) ∧ Q(x) ∧ R(x)
     /// let all_three = Formula::new_and(&[
-    ///     p.with(&[x]),
-    ///     q.with(&[x]),
-    ///     r.with(&[x]),
+    ///     p.with(x),
+    ///     q.with(x),
+    ///     r.with(x),
     /// ]);
     /// ```
     pub fn new_and(formulas: &[Formula]) -> Self {
@@ -722,9 +716,9 @@ impl Formula {
     ///
     /// // P(x) ∨ Q(x) ∨ R(x)
     /// let any = Formula::new_or(&[
-    ///     p.with(&[x]),
-    ///     q.with(&[x]),
-    ///     r.with(&[x]),
+    ///     p.with(x),
+    ///     q.with(x),
+    ///     r.with(x),
     /// ]);
     /// ```
     pub fn new_or(formulas: &[Formula]) -> Self {
@@ -748,7 +742,7 @@ impl Formula {
     /// let p = Predicate::new("P", 1);
     /// let x = Function::constant("x");
     ///
-    /// let not_p = Formula::new_not(p.with(&[x]));
+    /// let not_p = Formula::new_not(p.with(x));
     /// ```
     pub fn new_not(formula: Formula) -> Self {
         synced(|_| {
@@ -775,7 +769,7 @@ impl Formula {
     /// let x = Term::new_var(0);
     ///
     /// // ∀x. P(x)
-    /// let all_p = Formula::new_forall(0, p.with(&[x]));
+    /// let all_p = Formula::new_forall(0, p.with(x));
     /// ```
     pub fn new_forall(var: u32, f: Formula) -> Self {
         synced(|_| {
@@ -802,7 +796,7 @@ impl Formula {
     /// let x = Term::new_var(0);
     ///
     /// // ∃x. P(x)
-    /// let some_p = Formula::new_exists(0, p.with(&[x]));
+    /// let some_p = Formula::new_exists(0, p.with(x));
     /// ```
     pub fn new_exists(var: u32, f: Formula) -> Self {
         synced(|_| {
@@ -829,7 +823,7 @@ impl Formula {
     /// let x = Function::constant("x");
     ///
     /// // P(x) → Q(x)
-    /// let implication = p.with(&[x]).imp(q.with(&[x]));
+    /// let implication = p.with(x).imp(q.with(x));
     /// ```
     pub fn imp(&self, rhs: Formula) -> Self {
         synced(|_| {
@@ -856,7 +850,7 @@ impl Formula {
     ///
     /// // ∀x. even(x) ↔ divisible_by_2(x)
     /// let equiv = forall(|x| {
-    ///     even.with(&[x]).iff(div_by_2.with(&[x]))
+    ///     even.with(x).iff(div_by_2.with(x))
     /// });
     /// ```
     pub fn iff(&self, rhs: Formula) -> Self {
@@ -885,11 +879,11 @@ impl Formula {
 /// let p = Predicate::new("P", 1);
 ///
 /// // ∀x. P(x)
-/// let all_p = forall(|x| p.with(&[x]));
+/// let all_p = forall(|x| p.with(x));
 ///
 /// // Nested quantifiers: ∀x. ∀y. P(x, y)
 /// let p2 = Predicate::new("P", 2);
-/// let all_xy = forall(|x| forall(|y| p2.with(&[x, y])));
+/// let all_xy = forall(|x| forall(|y| p2.with([x, y])));
 /// ```
 ///
 /// # Complex Example
@@ -902,7 +896,7 @@ impl Formula {
 ///
 /// // ∀x. human(x) → mortal(x)
 /// let humans_are_mortal = forall(|x| {
-///     human.with(&[x]) >> mortal.with(&[x])
+///     human.with(x) >> mortal.with(x)
 /// });
 /// ```
 pub fn forall<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
@@ -929,11 +923,11 @@ pub fn forall<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
 /// let prime = Predicate::new("prime", 1);
 ///
 /// // ∃x. prime(x) - "There exists a prime number"
-/// let some_prime = exists(|x| prime.with(&[x]));
+/// let some_prime = exists(|x| prime.with(x));
 ///
 /// // ∃x. ∃y. edge(x, y) - "There exists an edge"
 /// let edge = Predicate::new("edge", 2);
-/// let has_edge = exists(|x| exists(|y| edge.with(&[x, y])));
+/// let has_edge = exists(|x| exists(|y| edge.with([x, y])));
 /// ```
 ///
 /// # Complex Example
@@ -944,7 +938,7 @@ pub fn forall<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
 /// let greater = Predicate::new("greater", 2);
 ///
 /// // ∃x. ∀y. greater(x, y) - "There exists a maximum element"
-/// let has_maximum = exists(|x| forall(|y| greater.with(&[x, y])));
+/// let has_maximum = exists(|x| forall(|y| greater.with([x, y])));
 /// ```
 pub fn exists<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
     let (var, var_idx) = Term::free_var();
@@ -964,7 +958,7 @@ pub fn exists<F: FnOnce(Term) -> Formula>(f: F) -> Formula {
 /// let x = Function::constant("x");
 ///
 /// // P(x) ∧ Q(x)
-/// let both = p.with(&[x]) & q.with(&[x]);
+/// let both = p.with(x) & q.with(x);
 /// ```
 impl BitAnd for Formula {
     type Output = Formula;
@@ -986,7 +980,7 @@ impl BitAnd for Formula {
 /// let x = Function::constant("x");
 ///
 /// // P(x) ∨ Q(x)
-/// let either = p.with(&[x]) | q.with(&[x]);
+/// let either = p.with(x) | q.with(x);
 /// ```
 impl BitOr for Formula {
     type Output = Formula;
@@ -1007,7 +1001,7 @@ impl BitOr for Formula {
 /// let x = Function::constant("x");
 ///
 /// // ¬P(x)
-/// let not_p = !p.with(&[x]);
+/// let not_p = !p.with(x);
 /// ```
 impl Not for Formula {
     type Output = Formula;
@@ -1029,7 +1023,7 @@ impl Not for Formula {
 /// let x = Function::constant("x");
 ///
 /// // P(x) → Q(x)
-/// let implies = p.with(&[x]) >> q.with(&[x]);
+/// let implies = p.with(x) >> q.with(x);
 /// ```
 impl Shr for Formula {
     type Output = Formula;
@@ -1124,9 +1118,9 @@ impl Default for Options {
 /// let socrates = Function::constant("socrates");
 ///
 /// let result = Problem::new(Options::new())
-///     .with_axiom(human.with(&[socrates]))
-///     .with_axiom(forall(|x| human.with(&[x]) >> mortal.with(&[x])))
-///     .conjecture(mortal.with(&[socrates]))
+///     .with_axiom(human.with(socrates))
+///     .with_axiom(forall(|x| human.with(x) >> mortal.with(x)))
+///     .conjecture(mortal.with(socrates))
 ///     .solve();
 ///
 /// assert_eq!(result, ProofRes::Proved);
@@ -1143,8 +1137,8 @@ impl Default for Options {
 /// let x = Function::constant("x");
 ///
 /// let result = Problem::new(Options::new())
-///     .with_axiom(p.with(&[x]))
-///     .with_axiom(!p.with(&[x]))  // Contradiction
+///     .with_axiom(p.with(x))
+///     .with_axiom(!p.with(x))  // Contradiction
 ///     .solve();
 ///
 /// // This should be unsatisfiable
@@ -1204,8 +1198,8 @@ impl Problem {
     /// let q = Predicate::new("Q", 1);
     ///
     /// let problem = Problem::new(Options::new())
-    ///     .with_axiom(forall(|x| p.with(&[x])))
-    ///     .with_axiom(forall(|x| p.with(&[x]) >> q.with(&[x])));
+    ///     .with_axiom(forall(|x| p.with(x)))
+    ///     .with_axiom(forall(|x| p.with(x) >> q.with(x)));
     /// ```
     pub fn with_axiom(mut self, f: Formula) -> Self {
         self.axioms.push(f);
@@ -1233,8 +1227,8 @@ impl Problem {
     /// let q = Predicate::new("Q", 1);
     ///
     /// let problem = Problem::new(Options::new())
-    ///     .with_axiom(forall(|x| p.with(&[x]) >> q.with(&[x])))
-    ///     .conjecture(forall(|x| q.with(&[x])));  // Try to prove this
+    ///     .with_axiom(forall(|x| p.with(x) >> q.with(x)))
+    ///     .conjecture(forall(|x| q.with(x)));  // Try to prove this
     /// ```
     pub fn conjecture(mut self, f: Formula) -> Self {
         self.conjecture = Some(f);
@@ -1262,8 +1256,8 @@ impl Problem {
     /// let x = Function::constant("x");
     ///
     /// let result = Problem::new(Options::new())
-    ///     .with_axiom(p.with(&[x]))
-    ///     .conjecture(p.with(&[x]))
+    ///     .with_axiom(p.with(x))
+    ///     .conjecture(p.with(x))
     ///     .solve();
     ///
     /// assert_eq!(result, ProofRes::Proved);
@@ -1312,8 +1306,8 @@ impl Problem {
 /// let x = Function::constant("x");
 ///
 /// let result = Problem::new(Options::new())
-///     .with_axiom(p.with(&[x]))
-///     .conjecture(p.with(&[x]))
+///     .with_axiom(p.with(x))
+///     .conjecture(p.with(x))
 ///     .solve();
 ///
 /// match result {
