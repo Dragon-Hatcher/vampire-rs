@@ -14,7 +14,7 @@
 //! # Quick Start
 //!
 //! ```
-//! use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+//! use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
 //!
 //! // Create predicates
 //! let is_mortal = Predicate::new("mortal", 1);
@@ -27,7 +27,7 @@
 //! let socrates = Function::constant("socrates");
 //!
 //! // Build and solve the problem
-//! let result = Problem::new()
+//! let result = Problem::new(Options::new())
 //!     .with_axiom(is_man.with(&[socrates]))    // Socrates is a man
 //!     .with_axiom(men_are_mortal)              // All men are mortal
 //!     .conjecture(is_mortal.with(&[socrates])) // Therefore, Socrates is mortal
@@ -69,7 +69,7 @@
 //! Prove transitivity of paths in a graph:
 //!
 //! ```
-//! use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+//! use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
 //!
 //! let edge = Predicate::new("edge", 2);
 //! let path = Predicate::new("path", 2);
@@ -89,7 +89,7 @@
 //!     (path.with(&[x, y]) & path.with(&[y, z])) >> path.with(&[x, z])
 //! )));
 //!
-//! let result = Problem::new()
+//! let result = Problem::new(Options::new())
 //!     .with_axiom(edges_are_paths)
 //!     .with_axiom(transitivity)
 //!     .with_axiom(edge.with(&[a, b]))
@@ -105,7 +105,7 @@
 //! Prove that left identity follows from the standard group axioms:
 //!
 //! ```
-//! use vampire_prover::{Function, Problem, ProofRes, Term, forall};
+//! use vampire_prover::{Function, Problem, ProofRes, Options, Term, forall};
 //!
 //! let mult = Function::new("mult", 2);
 //! let inv = Function::new("inv", 1);
@@ -130,7 +130,7 @@
 //! // Prove left identity: ∀x. 1 * x = x
 //! let left_identity = forall(|x| mul(one, x).eq(x));
 //!
-//! let result = Problem::new()
+//! let result = Problem::new(Options::new())
 //!     .with_axiom(right_identity)
 //!     .with_axiom(right_inverse)
 //!     .with_axiom(associativity)
@@ -153,6 +153,7 @@ use crate::lock::synced;
 use std::{
     ffi::CString,
     ops::{BitAnd, BitOr, Not, Shr},
+    time::Duration,
 };
 use vampire_sys as sys;
 
@@ -1038,6 +1039,73 @@ impl Shr for Formula {
     }
 }
 
+/// Configuration options for the Vampire theorem prover.
+///
+/// Options allow you to configure the behavior of the prover, such as setting
+/// time limits. Use the builder pattern to construct options.
+///
+/// # Examples
+///
+/// ```
+/// use vampire_prover::Options;
+/// use std::time::Duration;
+///
+/// // Default options (no timeout)
+/// let opts = Options::new();
+///
+/// // Set a timeout
+/// let opts = Options::new().timeout(Duration::from_secs(5));
+/// ```
+#[derive(Debug, Clone)]
+pub struct Options {
+    timeout: Option<Duration>,
+}
+
+impl Options {
+    /// Creates a new Options with default settings.
+    ///
+    /// By default, no timeout is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::Options;
+    ///
+    /// let opts = Options::new();
+    /// ```
+    pub fn new() -> Self {
+        Self { timeout: None }
+    }
+
+    /// Sets the timeout for the prover.
+    ///
+    /// If the prover exceeds this time limit, it will return
+    /// [`ProofRes::Unknown(UnknownReason::Timeout)`].
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - The maximum time the prover should run
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::Options;
+    /// use std::time::Duration;
+    ///
+    /// let opts = Options::new().timeout(Duration::from_secs(10));
+    /// ```
+    pub fn timeout(mut self, duration: Duration) -> Self {
+        self.timeout = Some(duration);
+        self
+    }
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// A theorem proving problem consisting of axioms and an optional conjecture.
 ///
 /// A [`Problem`] is constructed by adding axioms (assumed to be true) and optionally
@@ -1049,13 +1117,13 @@ impl Shr for Formula {
 /// ## Basic Usage
 ///
 /// ```
-/// use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+/// use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
 ///
 /// let mortal = Predicate::new("mortal", 1);
 /// let human = Predicate::new("human", 1);
 /// let socrates = Function::constant("socrates");
 ///
-/// let result = Problem::new()
+/// let result = Problem::new(Options::new())
 ///     .with_axiom(human.with(&[socrates]))
 ///     .with_axiom(forall(|x| human.with(&[x]) >> mortal.with(&[x])))
 ///     .conjecture(mortal.with(&[socrates]))
@@ -1069,12 +1137,12 @@ impl Shr for Formula {
 /// You can also create problems without a conjecture to check satisfiability:
 ///
 /// ```
-/// use vampire_prover::{Function, Predicate, Problem};
+/// use vampire_prover::{Function, Predicate, Problem, Options};
 ///
 /// let p = Predicate::new("P", 1);
 /// let x = Function::constant("x");
 ///
-/// let result = Problem::new()
+/// let result = Problem::new(Options::new())
 ///     .with_axiom(p.with(&[x]))
 ///     .with_axiom(!p.with(&[x]))  // Contradiction
 ///     .solve();
@@ -1083,22 +1151,33 @@ impl Shr for Formula {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Problem {
+    options: Options,
     axioms: Vec<Formula>,
     conjecture: Option<Formula>,
 }
 
 impl Problem {
-    /// Creates a new empty problem with no axioms or conjecture.
+    /// Creates a new empty problem with the given options.
+    ///
+    /// # Arguments
+    ///
+    /// * `options` - Configuration options for the prover
     ///
     /// # Examples
     ///
     /// ```
-    /// use vampire_prover::Problem;
+    /// use vampire_prover::{Problem, Options};
+    /// use std::time::Duration;
     ///
-    /// let problem = Problem::new();
+    /// // Default options
+    /// let problem = Problem::new(Options::new());
+    ///
+    /// // With timeout
+    /// let problem = Problem::new(Options::new().timeout(Duration::from_secs(5)));
     /// ```
-    pub fn new() -> Self {
+    pub fn new(options: Options) -> Self {
         Self {
+            options,
             axioms: Vec::new(),
             conjecture: None,
         }
@@ -1119,12 +1198,12 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire_prover::{Function, Predicate, Problem, forall};
+    /// use vampire_prover::{Function, Predicate, Problem, Options, forall};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
     ///
-    /// let problem = Problem::new()
+    /// let problem = Problem::new(Options::new())
     ///     .with_axiom(forall(|x| p.with(&[x])))
     ///     .with_axiom(forall(|x| p.with(&[x]) >> q.with(&[x])));
     /// ```
@@ -1148,12 +1227,12 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire_prover::{Function, Predicate, Problem, forall};
+    /// use vampire_prover::{Function, Predicate, Problem, Options, forall};
     ///
     /// let p = Predicate::new("P", 1);
     /// let q = Predicate::new("Q", 1);
     ///
-    /// let problem = Problem::new()
+    /// let problem = Problem::new(Options::new())
     ///     .with_axiom(forall(|x| p.with(&[x]) >> q.with(&[x])))
     ///     .conjecture(forall(|x| q.with(&[x])));  // Try to prove this
     /// ```
@@ -1177,12 +1256,12 @@ impl Problem {
     /// # Examples
     ///
     /// ```
-    /// use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+    /// use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
     ///
     /// let p = Predicate::new("P", 1);
     /// let x = Function::constant("x");
     ///
-    /// let result = Problem::new()
+    /// let result = Problem::new(Options::new())
     ///     .with_axiom(p.with(&[x]))
     ///     .conjecture(p.with(&[x]))
     ///     .solve();
@@ -1191,6 +1270,12 @@ impl Problem {
     /// ```
     pub fn solve(self) -> ProofRes {
         synced(|_| unsafe {
+            // Apply timeout option if set
+            if let Some(timeout) = self.options.timeout {
+                let deciseconds = timeout.as_millis() / 100;
+                sys::vampire_set_time_limit_deciseconds(deciseconds as i32);
+            }
+
             let mut units = Vec::new();
 
             for axiom in self.axioms {
@@ -1221,12 +1306,12 @@ impl Problem {
 /// # Examples
 ///
 /// ```
-/// use vampire_prover::{Function, Predicate, Problem, ProofRes, forall};
+/// use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
 ///
 /// let p = Predicate::new("P", 1);
 /// let x = Function::constant("x");
 ///
-/// let result = Problem::new()
+/// let result = Problem::new(Options::new())
 ///     .with_axiom(p.with(&[x]))
 ///     .conjecture(p.with(&[x]))
 ///     .solve();
@@ -1316,7 +1401,7 @@ impl ProofRes {
 
 #[cfg(test)]
 mod test {
-    use crate::{Function, Predicate, Problem, ProofRes, Term, exists, forall};
+    use crate::{Function, Options, Predicate, Problem, ProofRes, Term, exists, forall};
 
     #[test]
     fn test_with_syntax() {
@@ -1354,7 +1439,7 @@ mod test {
         // Therefore, Socrates is mortal
         let socrates_is_mortal = is_mortal.with(socrates);
 
-        let solution = Problem::new()
+        let solution = Problem::new(Options::new())
             .with_axiom(socrates_is_man)
             .with_axiom(men_are_mortal)
             .conjecture(socrates_is_mortal)
@@ -1400,7 +1485,7 @@ mod test {
         // Conjecture: there is a path from a to e
         let conjecture = path.with([a, e]);
 
-        let solution = Problem::new()
+        let solution = Problem::new(Options::new())
             .with_axiom(direct_edge_is_path)
             .with_axiom(path_transitivity)
             .with_axiom(edge_ab)
@@ -1445,7 +1530,7 @@ mod test {
         // Conjecture: Left identity - ∀x. 1 * x = x
         let left_identity = forall(|x| mul(one, x).eq(x));
 
-        let solution = Problem::new()
+        let solution = Problem::new(Options::new())
             .with_axiom(right_identity)
             .with_axiom(right_inverse)
             .with_axiom(associativity)
@@ -1485,8 +1570,7 @@ mod test {
         let h_ident = h.with(one);
 
         // And is closed under multiplication
-        let h_mul_closed =
-            forall(|x| forall(|y| (h.with(x) & h.with(y)) >> h.with(mul(x, y))));
+        let h_mul_closed = forall(|x| forall(|y| (h.with(x) & h.with(y)) >> h.with(mul(x, y))));
 
         // And is closed under inverse
         let h_inv_closed = forall(|x| h.with(x) >> h.with(inv.with(x)));
@@ -1511,7 +1595,7 @@ mod test {
             h_x.iff(conj_x)
         });
 
-        let solution = Problem::new()
+        let solution = Problem::new(Options::new())
             .with_axiom(right_identity)
             .with_axiom(right_inverse)
             .with_axiom(associativity)
