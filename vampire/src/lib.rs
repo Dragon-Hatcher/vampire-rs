@@ -176,21 +176,9 @@ impl IntoTermArgs for Term {
     }
 }
 
-impl<const N: usize> IntoTermArgs for [Term; N] {
+impl<T> IntoTermArgs for T where T: AsRef<[Term]> {
     fn as_slice(&self) -> &[Term] {
-        self
-    }
-}
-
-impl<const N: usize> IntoTermArgs for &[Term; N] {
-    fn as_slice(&self) -> &[Term] {
-        *self
-    }
-}
-
-impl IntoTermArgs for [Term] {
-    fn as_slice(&self) -> &[Term] {
-        self
+        self.as_ref()
     }
 }
 
@@ -1413,8 +1401,11 @@ mod test {
         let _t2 = f.with(&[x, y]);
         let _f2 = p.with(&[x]);
 
+        let _t3 = f.with(&vec![x, y]);
+        let _f3 = p.with(vec![x]);
+
         // Test single term
-        let _f3 = p.with(x);
+        let _f4 = p.with(x);
     }
 
     #[test]
