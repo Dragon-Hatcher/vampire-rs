@@ -1076,7 +1076,7 @@ impl Options {
     ///
     /// let opts = Options::new().timeout(Duration::from_secs(10));
     /// ```
-    pub fn timeout(mut self, duration: Duration) -> Self {
+    pub fn timeout(&mut self, duration: Duration) -> &mut Self {
         self.timeout = Some(duration);
         self
     }
@@ -1153,9 +1153,6 @@ impl Problem {
     ///
     /// // Default options
     /// let problem = Problem::new(Options::new());
-    ///
-    /// // With timeout
-    /// let problem = Problem::new(Options::new().timeout(Duration::from_secs(5)));
     /// ```
     pub fn new(options: Options) -> Self {
         Self {
@@ -1189,7 +1186,7 @@ impl Problem {
     ///     .with_axiom(forall(|x| p.with(x)))
     ///     .with_axiom(forall(|x| p.with(x) >> q.with(x)));
     /// ```
-    pub fn with_axiom(mut self, f: Formula) -> Self {
+    pub fn with_axiom(&mut self, f: Formula) -> &mut Self {
         self.axioms.push(f);
         self
     }
@@ -1218,7 +1215,7 @@ impl Problem {
     ///     .with_axiom(forall(|x| p.with(x) >> q.with(x)))
     ///     .conjecture(forall(|x| q.with(x)));  // Try to prove this
     /// ```
-    pub fn conjecture(mut self, f: Formula) -> Self {
+    pub fn conjecture(&mut self, f: Formula) -> &mut Self {
         self.conjecture = Some(f);
         self
     }
@@ -1250,7 +1247,7 @@ impl Problem {
     ///
     /// assert_eq!(result, ProofRes::Proved);
     /// ```
-    pub fn solve(self) -> ProofRes {
+    pub fn solve(&mut self) -> ProofRes {
         synced(|_| unsafe {
             // Apply timeout option if set
             if let Some(timeout) = self.options.timeout {
@@ -1260,7 +1257,7 @@ impl Problem {
 
             let mut units = Vec::new();
 
-            for axiom in self.axioms {
+            for axiom in &self.axioms {
                 let axiom_unit = sys::vampire_axiom_formula(axiom.id);
                 units.push(axiom_unit);
             }
