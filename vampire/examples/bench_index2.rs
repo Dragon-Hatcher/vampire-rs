@@ -1,5 +1,5 @@
 use std::time::Instant;
-use vampire_prover::{Function, Predicate, Problem, ProofRes, Term, exists, forall};
+use vampire_prover::{Function, Options, Predicate, Problem, ProofRes, Term, exists, forall};
 
 fn main() {
     println!("Running index-2 subgroup normality proof benchmark");
@@ -164,7 +164,7 @@ fn run_proof(i: usize) -> ProofRes {
         h_x.iff(conj_x)
     });
 
-    Problem::new()
+    Problem::new(Options::new())
         .with_axiom(right_identity)
         .with_axiom(right_inverse)
         .with_axiom(associativity)

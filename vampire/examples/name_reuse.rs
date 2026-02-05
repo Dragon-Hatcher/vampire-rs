@@ -1,4 +1,4 @@
-use vampire_prover::{Function, Predicate, Problem};
+use vampire_prover::{Function, Options, Predicate, Problem};
 
 fn main() {
     let x1 = Function::new("x", 0);
@@ -17,7 +17,7 @@ fn main() {
 
     dbg!(z1, z2);
 
-    let solution = Problem::new()
+    let solution = Problem::new(Options::new())
         .with_axiom(y1.with(&[]).eq(y2.with(&[y1.with(&[])])))
         .solve();
 
