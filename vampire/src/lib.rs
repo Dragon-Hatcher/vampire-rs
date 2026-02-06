@@ -1324,6 +1324,8 @@ impl Problem {
     /// ```
     pub fn solve(&mut self) -> ProofRes {
         synced(|_| unsafe {
+            sys::vampire_prepare_for_next_proof();
+
             // Apply timeout option if set
             if let Some(timeout) = self.options.timeout {
                 let deciseconds = timeout.as_millis() / 100;
@@ -1341,7 +1343,6 @@ impl Problem {
                 units.push(conjecture_unit);
             }
 
-            sys::vampire_prepare_for_next_proof();
             let problem = sys::vampire_problem_from_units(units.as_mut_ptr(), units.len());
             let proof_res = sys::vampire_prove(problem);
 
