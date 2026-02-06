@@ -176,7 +176,10 @@ impl IntoTermArgs for Term {
     }
 }
 
-impl<T> IntoTermArgs for T where T: AsRef<[Term]> {
+impl<T> IntoTermArgs for T
+where
+    T: AsRef<[Term]>,
+{
     fn as_slice(&self) -> &[Term] {
         self.as_ref()
     }
@@ -450,13 +453,48 @@ impl Predicate {
 /// let succ = Function::new("succ", 1);
 /// let one = succ.with(zero);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Term {
     id: *mut sys::vampire_term_t,
 }
 
+impl std::fmt::Debug for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Term({})", self.to_string())
+    }
+}
+
 impl Term {
+    /// Converts this term to a string representation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the underlying C API fails (which should never happen in normal use).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::Function;
+    ///
+    /// let x = Function::constant("x");
+    /// println!("{}", x.to_string()); // Prints the vampire string representation
+    /// ```
+    pub fn to_string(&self) -> String {
+        synced(|_| unsafe {
+            let ptr = sys::vampire_term_to_string(self.id);
+            assert!(!ptr.is_null(), "vampire_term_to_string returned null");
+
+            let c_str = std::ffi::CStr::from_ptr(ptr);
+            let result = c_str
+                .to_str()
+                .expect("vampire returned invalid UTF-8")
+                .to_string();
+            sys::vampire_free_string(ptr);
+            result
+        })
+    }
+
     /// Creates a term by applying a function to arguments.
     ///
     /// This is typically called via [`Function::with`] rather than directly.
@@ -599,13 +637,50 @@ impl Term {
 /// // Universal quantification: ∀x. P(x)
 /// let all = forall(|x| p.with(x));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Formula {
     id: *mut sys::vampire_formula_t,
 }
 
+impl std::fmt::Debug for Formula {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Formula({})", self.to_string())
+    }
+}
+
 impl Formula {
+    /// Converts this formula to a string representation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the underlying C API fails (which should never happen in normal use).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::{Function, Predicate};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let x = Function::constant("x");
+    /// let formula = p.with(x);
+    /// println!("{}", formula.to_string()); // Prints the vampire string representation
+    /// ```
+    pub fn to_string(&self) -> String {
+        synced(|_| unsafe {
+            let ptr = sys::vampire_formula_to_string(self.id);
+            assert!(!ptr.is_null(), "vampire_formula_to_string returned null");
+
+            let c_str = std::ffi::CStr::from_ptr(ptr);
+            let result = c_str
+                .to_str()
+                .expect("vampire returned invalid UTF-8")
+                .to_string();
+            sys::vampire_free_string(ptr);
+            result
+        })
+    }
+
     /// Creates an atomic formula by applying a predicate to arguments.
     ///
     /// This is typically called via [`Predicate::with`] rather than directly.

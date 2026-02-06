@@ -323,28 +323,28 @@ unsafe extern "C" {
     pub fn vampire_clause_is_empty(clause: *mut vampire_clause_t) -> bool;
 }
 unsafe extern "C" {
-    #[doc = " Convert a term to a string representation.\n @param term The term\n @param buffer Output buffer (must be allocated by caller)\n @param buffer_size Size of the buffer\n @return Number of characters written (excluding null terminator),\n         or -1 if buffer too small"]
-    pub fn vampire_term_to_string(
-        term: *mut vampire_term_t,
-        buffer: *mut ::std::os::raw::c_char,
-        buffer_size: usize,
-    ) -> ::std::os::raw::c_int;
+    #[doc = " Convert a term to a string representation.\n @param term The term\n @return Allocated string (must be freed with vampire_free_string), or NULL on error"]
+    pub fn vampire_term_to_string(term: *mut vampire_term_t) -> *mut ::std::os::raw::c_char;
 }
 unsafe extern "C" {
-    #[doc = " Convert a literal to a string representation.\n @param literal The literal\n @param buffer Output buffer (must be allocated by caller)\n @param buffer_size Size of the buffer\n @return Number of characters written (excluding null terminator),\n         or -1 if buffer too small"]
+    #[doc = " Convert a literal to a string representation.\n @param literal The literal\n @return Allocated string (must be freed with vampire_free_string), or NULL on error"]
     pub fn vampire_literal_to_string(
         literal: *mut vampire_literal_t,
-        buffer: *mut ::std::os::raw::c_char,
-        buffer_size: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> *mut ::std::os::raw::c_char;
 }
 unsafe extern "C" {
-    #[doc = " Convert a clause to a string representation.\n @param clause The clause\n @param buffer Output buffer (must be allocated by caller)\n @param buffer_size Size of the buffer\n @return Number of characters written (excluding null terminator),\n         or -1 if buffer too small"]
-    pub fn vampire_clause_to_string(
-        clause: *mut vampire_clause_t,
-        buffer: *mut ::std::os::raw::c_char,
-        buffer_size: usize,
-    ) -> ::std::os::raw::c_int;
+    #[doc = " Convert a clause to a string representation.\n @param clause The clause\n @return Allocated string (must be freed with vampire_free_string), or NULL on error"]
+    pub fn vampire_clause_to_string(clause: *mut vampire_clause_t) -> *mut ::std::os::raw::c_char;
+}
+unsafe extern "C" {
+    #[doc = " Convert a formula to a string representation.\n @param formula The formula\n @return Allocated string (must be freed with vampire_free_string), or NULL on error"]
+    pub fn vampire_formula_to_string(
+        formula: *mut vampire_formula_t,
+    ) -> *mut ::std::os::raw::c_char;
+}
+unsafe extern "C" {
+    #[doc = " Free a string allocated by vampire_*_to_string functions.\n @param str The string to free"]
+    pub fn vampire_free_string(str: *mut ::std::os::raw::c_char);
 }
 unsafe extern "C" {
     #[doc = " Get the name of an inference rule.\n @param rule The inference rule\n @return String name (static, do not free)"]
