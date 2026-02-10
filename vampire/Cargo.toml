@@ -1,6 +1,6 @@
 [package]
 name = "vampire-prover"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2024"
 authors = ["Daniel James"]
 description = "Safe Rust bindings to the Vampire theorem prover for first-order logic"
@@ -12,4 +12,4 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 [dependencies]
-vampire-sys = { path = "../vampire-sys", version = "0.2" }
+vampire-sys = { path = "../vampire-sys", version = "0.3" }
