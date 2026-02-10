@@ -119,6 +119,10 @@ unsafe extern "C" {
     pub fn vampire_set_time_limit_deciseconds(deciseconds: ::std::os::raw::c_int);
 }
 unsafe extern "C" {
+    #[doc = " Set a time limit in milliseconds (1000 = 1 second, 0 = no limit)."]
+    pub fn vampire_set_time_limit_milliseconds(milliseconds: ::std::os::raw::c_int);
+}
+unsafe extern "C" {
     #[doc = " Enable or disable proof output."]
     pub fn vampire_set_show_proof(show: bool);
 }

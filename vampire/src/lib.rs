@@ -1328,8 +1328,8 @@ impl Problem {
 
             // Apply timeout option if set
             if let Some(timeout) = self.options.timeout {
-                let deciseconds = timeout.as_millis() / 100;
-                sys::vampire_set_time_limit_deciseconds(deciseconds as i32);
+                let ms = timeout.as_millis().max(1);
+                sys::vampire_set_time_limit_milliseconds(ms as i32);
             }
 
             let mut units = Vec::new();
