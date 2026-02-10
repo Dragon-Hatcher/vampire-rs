@@ -232,6 +232,14 @@ unsafe extern "C" {
     ) -> *mut vampire_formula_t;
 }
 unsafe extern "C" {
+    #[doc = " Create a true (tautology) formula.\n @return Formula handle"]
+    pub fn vampire_true() -> *mut vampire_formula_t;
+}
+unsafe extern "C" {
+    #[doc = " Create a false (contradiction) formula.\n @return Formula handle"]
+    pub fn vampire_false() -> *mut vampire_formula_t;
+}
+unsafe extern "C" {
     #[doc = " Create an axiom formula unit.\n @param f The formula\n @return Unit handle"]
     pub fn vampire_axiom_formula(f: *mut vampire_formula_t) -> *mut vampire_unit_t;
 }

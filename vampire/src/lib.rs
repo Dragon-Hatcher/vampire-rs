@@ -814,6 +814,38 @@ impl Formula {
         })
     }
 
+    /// Creates the true (tautology) formula.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::Formula;
+    ///
+    /// let t = Formula::new_true();
+    /// ```
+    pub fn new_true() -> Self {
+        synced(|_| {
+            let id = unsafe { sys::vampire_true() };
+            Self { id }
+        })
+    }
+
+    /// Creates the false (contradiction) formula.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::Formula;
+    ///
+    /// let f = Formula::new_false();
+    /// ```
+    pub fn new_false() -> Self {
+        synced(|_| {
+            let id = unsafe { sys::vampire_false() };
+            Self { id }
+        })
+    }
+
     /// Creates a universally quantified formula.
     ///
     /// The [`forall`] helper function provides a more ergonomic interface.
