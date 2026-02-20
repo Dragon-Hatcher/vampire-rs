@@ -151,11 +151,13 @@
 
 use crate::lock::synced;
 use std::{
+    collections::HashMap,
     ffi::CString,
-    ops::{BitAnd, BitOr, Not, Shr},
+    fmt::Display,
+    ops::{BitAnd, BitOr, Index, Not, Shr},
     time::Duration,
 };
-use vampire_sys as sys;
+use vampire_sys::{self as sys, vampire_unit_t};
 
 mod lock;
 
@@ -465,6 +467,12 @@ impl std::fmt::Debug for Term {
     }
 }
 
+impl std::fmt::Display for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 impl Term {
     /// Converts this term to a string representation.
     ///
@@ -646,6 +654,12 @@ pub struct Formula {
 impl std::fmt::Debug for Formula {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Formula({})", self.to_string())
+    }
+}
+
+impl std::fmt::Display for Formula {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -1169,7 +1183,7 @@ impl Options {
     /// Sets the timeout for the prover.
     ///
     /// If the prover exceeds this time limit, it will return
-    /// [`ProofRes::Unknown(UnknownReason::Timeout)`].
+    /// `ProofRes::Unknown(UnknownReason::Timeout)`.
     ///
     /// # Arguments
     ///
@@ -1327,6 +1341,34 @@ impl Problem {
         self
     }
 
+    unsafe fn unsynce_solve(&mut self) -> ProofRes {
+        unsafe {
+            sys::vampire_prepare_for_next_proof();
+
+            // Apply timeout option if set
+            if let Some(timeout) = self.options.timeout {
+                let ms = timeout.as_millis().max(1);
+                sys::vampire_set_time_limit_milliseconds(ms as i32);
+            }
+
+            let mut units = Vec::new();
+
+            for axiom in &self.axioms {
+                let axiom_unit = sys::vampire_axiom_formula(axiom.id);
+                units.push(axiom_unit);
+            }
+            if let Some(conjecture) = self.conjecture {
+                let conjecture_unit = sys::vampire_conjecture_formula(conjecture.id);
+                units.push(conjecture_unit);
+            }
+
+            let problem = sys::vampire_problem_from_units(units.as_mut_ptr(), units.len());
+            let proof_res = sys::vampire_prove(problem);
+
+            ProofRes::new_from_raw(proof_res)
+        }
+    }
+
     /// Solves the problem using the Vampire theorem prover.
     ///
     /// This method consumes the problem and invokes Vampire to either prove the
@@ -1355,30 +1397,49 @@ impl Problem {
     /// assert_eq!(result, ProofRes::Proved);
     /// ```
     pub fn solve(&mut self) -> ProofRes {
+        synced(|_| unsafe { self.unsynce_solve() })
+    }
+
+    /// Solves the problem and, if proved, returns the proof.
+    ///
+    /// This is like [`Problem::solve`] but also extracts a [`Proof`] when the
+    /// conjecture is successfully proved. If the result is anything other than
+    /// [`ProofRes::Proved`], the second element of the tuple is `None`.
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(ProofRes, Option<Proof>)`. The `Option<Proof>` is `Some` only
+    /// when the result is [`ProofRes::Proved`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
+    ///
+    /// let p = Predicate::new("P", 1);
+    /// let x = Function::constant("x");
+    ///
+    /// let (result, proof) = Problem::new(Options::new())
+    ///     .with_axiom(p.with(x))
+    ///     .conjecture(p.with(x))
+    ///     .solve_and_prove();
+    ///
+    /// assert_eq!(result, ProofRes::Proved);
+    /// assert!(proof.is_some());
+    /// println!("{}", proof.unwrap());
+    /// ```
+    pub fn solve_and_prove(&mut self) -> (ProofRes, Option<Proof>) {
         synced(|_| unsafe {
-            sys::vampire_prepare_for_next_proof();
+            let res = self.unsynce_solve();
 
-            // Apply timeout option if set
-            if let Some(timeout) = self.options.timeout {
-                let ms = timeout.as_millis().max(1);
-                sys::vampire_set_time_limit_milliseconds(ms as i32);
-            }
+            let ProofRes::Proved = res else {
+                return (res, None);
+            };
 
-            let mut units = Vec::new();
+            let refutation = sys::vampire_get_refutation();
+            let proof = Proof::from_refutation(refutation);
 
-            for axiom in &self.axioms {
-                let axiom_unit = sys::vampire_axiom_formula(axiom.id);
-                units.push(axiom_unit);
-            }
-            if let Some(conjecture) = self.conjecture {
-                let conjecture_unit = sys::vampire_conjecture_formula(conjecture.id);
-                units.push(conjecture_unit);
-            }
-
-            let problem = sys::vampire_problem_from_units(units.as_mut_ptr(), units.len());
-            let proof_res = sys::vampire_prove(problem);
-
-            ProofRes::new_from_raw(proof_res)
+            (res, Some(proof))
         })
     }
 }
@@ -1483,6 +1544,261 @@ impl ProofRes {
         } else {
             panic!()
         }
+    }
+}
+
+/// A proof produced by the Vampire theorem prover.
+///
+/// A `Proof` is a sequence of [`ProofStep`]s that together form a complete
+/// derivation of a contradiction from the negated conjecture and axioms.
+/// Each step records the inference rule used and the indices of the premises
+/// (earlier steps) it was derived from.
+///
+/// Proofs are obtained via [`Problem::solve_and_prove`].
+///
+/// # Display
+///
+/// `Proof` implements [`std::fmt::Display`], which prints each step on its own
+/// line in the format `<index>: <conclusion> [<rule> <premise-indices>]`.
+///
+/// # Examples
+///
+/// ```
+/// use vampire_prover::{Function, Predicate, Problem, ProofRes, Options};
+///
+/// let p = Predicate::new("P", 1);
+/// let x = Function::constant("x");
+///
+/// let (_, proof) = Problem::new(Options::new())
+///     .with_axiom(p.with(x))
+///     .conjecture(p.with(x))
+///     .solve_and_prove();
+///
+/// if let Some(proof) = proof {
+///     for step in proof.steps() {
+///         println!("{}: {:?}", step.discovery_order(), step.rule());
+///     }
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proof {
+    steps: Vec<ProofStep>,
+}
+
+impl Proof {
+    unsafe fn from_refutation(refutation: *mut vampire_unit_t) -> Self {
+        unsafe {
+            let mut steps_ptr = std::ptr::null_mut();
+            let mut steps_len: usize = 0;
+            let success = sys::vampire_extract_proof(refutation, &mut steps_ptr, &mut steps_len);
+            assert!(success == 0);
+
+            let vsteps = std::slice::from_raw_parts(steps_ptr, steps_len);
+            let mut vsteps = vsteps.to_vec();
+            vsteps.sort_by_key(|s| s.id);
+
+            let mut steps = Vec::new();
+            let mut step_map = HashMap::new();
+
+            for vstep in vsteps {
+                let discovery_order = vstep.id;
+                let rule = ProofRule::from_raw(vstep.rule, vstep.input_type);
+                let premises = if vstep.premise_count == 0 {
+                    Vec::new()
+                } else {
+                    std::slice::from_raw_parts(vstep.premise_ids, vstep.premise_count)
+                        .iter()
+                        .map(|p| step_map[p])
+                        .collect()
+                };
+
+                let conclusion = sys::vampire_unit_as_formula(vstep.unit);
+                let conclusion = Formula { id: conclusion };
+
+                step_map.insert(discovery_order, steps.len());
+                let step = ProofStep {
+                    discovery_order,
+                    rule,
+                    premises,
+                    conclusion,
+                };
+                steps.push(step);
+            }
+
+            sys::vampire_free_proof_steps(steps_ptr, steps_len);
+
+            Self { steps }
+        }
+    }
+
+    /// Returns all proof steps in the order Vampire discovered them.
+    ///
+    /// Steps are sorted by their [`ProofStep::discovery_order`]. Because each
+    /// step's premises always have a lower discovery order than the step itself,
+    /// this ordering is also a valid topological ordering of the proof DAG.
+    pub fn steps(&self) -> &[ProofStep] {
+        &self.steps
+    }
+
+    /// Iterates over proof steps in topological order (discovery order).
+    ///
+    /// This is equivalent to iterating over [`Proof::steps`] and is provided
+    /// for clarity when the topological property matters.
+    pub fn topo_iter(&self) -> impl Iterator<Item = &ProofStep> {
+        self.steps.iter()
+    }
+}
+
+impl Display for Proof {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (i, step) in self.steps().iter().enumerate() {
+            writeln!(
+                f,
+                "{}: {} [{:?}{}]",
+                i,
+                step.conclusion(),
+                step.rule(),
+                step.premises()
+                    .iter()
+                    .fold(String::new(), |s, p| s + " " + &p.to_string())
+            )?
+        }
+
+        Ok(())
+    }
+}
+
+impl Index<usize> for Proof {
+    type Output = ProofStep;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.steps[index]
+    }
+}
+
+/// The inference rule used to derive a [`ProofStep`].
+///
+/// Each step in a [`Proof`] was produced by one of these rules. Input steps
+/// (axioms and the negated conjecture) use [`ProofRule::Axiom`] or
+/// [`ProofRule::NegatedConjecture`]. All other variants represent internal
+/// Vampire inference rules applied during the proof search.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ProofRule {
+    // claude: don't document what these individual rules are.
+    Axiom,
+    NegatedConjecture,
+    Rectify,
+    Flatten,
+    EENFTransformation,
+    CNFTransformation,
+    NNFTransformation,
+    SkolemSymbolIntroduction,
+    Skolemize,
+    Superposition,
+    ForwardDemodulation,
+    BackwardDemodulation,
+    ForwardSubsumptionResolution,
+    Resolution,
+    TrivialInequalityRemoval,
+    Avatar,
+    Other,
+}
+
+impl ProofRule {
+    fn from_raw(rule: u32, input_type: u32) -> Self {
+        if rule == sys::vampire_inference_rule_t_INPUT {
+            if input_type == sys::vampire_input_type_t_VAMPIRE_AXIOM {
+                Self::Axiom
+            } else if input_type == sys::vampire_input_type_t_VAMPIRE_NEGATED_CONJECTURE {
+                Self::NegatedConjecture
+            } else {
+                unreachable!()
+            }
+        } else if rule == sys::vampire_inference_rule_t_RECTIFY {
+            Self::Rectify
+        } else if rule == sys::vampire_inference_rule_t_FLATTEN {
+            Self::Flatten
+        } else if rule == sys::vampire_inference_rule_t_ENNF {
+            Self::EENFTransformation
+        } else if rule == sys::vampire_inference_rule_t_CLAUSIFY {
+            Self::CNFTransformation
+        } else if rule == sys::vampire_inference_rule_t_NNF {
+            Self::NNFTransformation
+        } else if rule == sys::vampire_inference_rule_t_SKOLEM_SYMBOL_INTRODUCTION {
+            Self::Skolemize
+        } else if rule == sys::vampire_inference_rule_t_SKOLEMIZE {
+            Self::SkolemSymbolIntroduction
+        } else if rule == sys::vampire_inference_rule_t_SUPERPOSITION {
+            Self::Superposition
+        } else if rule == sys::vampire_inference_rule_t_FORWARD_DEMODULATION {
+            Self::ForwardDemodulation
+        } else if rule == sys::vampire_inference_rule_t_BACKWARD_DEMODULATION {
+            Self::BackwardDemodulation
+        } else if rule == sys::vampire_inference_rule_t_FORWARD_SUBSUMPTION_RESOLUTION {
+            Self::ForwardSubsumptionResolution
+        } else if rule == sys::vampire_inference_rule_t_RESOLUTION {
+            Self::Resolution
+        } else if rule == sys::vampire_inference_rule_t_TRIVIAL_INEQUALITY_REMOVAL {
+            Self::TrivialInequalityRemoval
+        } else if rule == sys::vampire_inference_rule_t_AVATAR_DEFINITION
+            || rule == sys::vampire_inference_rule_t_AVATAR_COMPONENT
+            || rule == sys::vampire_inference_rule_t_AVATAR_SPLIT_CLAUSE
+            || rule == sys::vampire_inference_rule_t_AVATAR_CONTRADICTION_CLAUSE
+            || rule == sys::vampire_inference_rule_t_AVATAR_REFUTATION
+        {
+            Self::Avatar
+        } else {
+            Self::Other
+        }
+    }
+}
+
+/// A single step in a [`Proof`].
+///
+/// Each step records:
+/// - The [`Formula`] derived at this step ([`ProofStep::conclusion`])
+/// - The [`ProofRule`] used to derive it ([`ProofStep::rule`])
+/// - The indices (into [`Proof::steps`]) of the premises this step depends on
+///   ([`ProofStep::premises`])
+/// - A discovery-order counter assigned by Vampire ([`ProofStep::discovery_order`])
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProofStep {
+    discovery_order: u32,
+    rule: ProofRule,
+    premises: Vec<usize>,
+    conclusion: Formula,
+}
+
+impl ProofStep {
+    /// Returns the formula derived at this step.
+    pub fn conclusion(&self) -> Formula {
+        self.conclusion
+    }
+
+    /// Returns the inference rule used to derive this step.
+    pub fn rule(&self) -> ProofRule {
+        self.rule
+    }
+
+    /// Returns the indices of the premises this step was derived from.
+    ///
+    /// Each value is an index into the [`Proof::steps`] slice (i.e. the position
+    /// of the premise among the steps that actually appear in the proof, not its
+    /// [`ProofStep::discovery_order`]).
+    pub fn premises(&self) -> &[usize] {
+        &self.premises
+    }
+
+    /// Returns Vampire's internal discovery-order ID for this step.
+    ///
+    /// As Vampire searches for a proof it assigns every derived fact a
+    /// monotonically increasing numeric ID. When the proof is extracted, only
+    /// the facts that were actually *used* in the refutation are included, so
+    /// there may be gaps in the sequence. The steps in [`Proof::steps`] are
+    /// sorted by this value, which also gives a valid topological ordering of
+    /// the proof DAG.
+    pub fn discovery_order(&self) -> u32 {
+        self.discovery_order
     }
 }
 
