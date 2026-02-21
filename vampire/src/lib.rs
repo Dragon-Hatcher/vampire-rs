@@ -455,10 +455,24 @@ impl Predicate {
 /// let succ = Function::new("succ", 1);
 /// let one = succ.with(zero);
 /// ```
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Term {
     id: *mut sys::vampire_term_t,
+}
+
+impl PartialEq for Term {
+    fn eq(&self, other: &Self) -> bool {
+        synced(|_| unsafe { sys::vampire_term_equal(self.id, other.id) })
+    }
+}
+
+impl Eq for Term {}
+
+impl std::hash::Hash for Term {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        synced(|_| unsafe { sys::vampire_term_hash(self.id) }).hash(state);
+    }
 }
 
 impl std::fmt::Debug for Term {
@@ -645,10 +659,24 @@ impl Term {
 /// // Universal quantification: ∀x. P(x)
 /// let all = forall(|x| p.with(x));
 /// ```
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Formula {
     id: *mut sys::vampire_formula_t,
+}
+
+impl PartialEq for Formula {
+    fn eq(&self, other: &Self) -> bool {
+        synced(|_| unsafe { sys::vampire_formula_equal(self.id, other.id) })
+    }
+}
+
+impl Eq for Formula {}
+
+impl std::hash::Hash for Formula {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        synced(|_| unsafe { sys::vampire_formula_hash(self.id) }).hash(state);
+    }
 }
 
 impl std::fmt::Debug for Formula {
@@ -2013,5 +2041,136 @@ mod test {
             .solve();
 
         assert_eq!(solution, ProofRes::Proved);
+    }
+
+    #[test]
+    fn term_structural_equality() {
+        let f = Function::new("f_teq", 2);
+        let g = Function::new("g_teq", 1);
+
+        // Same constant constructed twice: equal
+        let a1 = Function::constant("a_teq");
+        let a2 = Function::constant("a_teq");
+        assert_eq!(a1, a2);
+
+        // Different constants: not equal
+        let b = Function::constant("b_teq");
+        assert_ne!(a1, b);
+
+        // Same compound term constructed twice: equal
+        let t1 = f.with([g.with(a1), b]);
+        let t2 = f.with([g.with(a1), b]);
+        assert_eq!(t1, t2);
+
+        // Different argument: not equal
+        let t3 = f.with([g.with(b), b]);
+        assert_ne!(t1, t3);
+
+        // Same variable index: equal
+        let x0a = Term::new_var(0);
+        let x0b = Term::new_var(0);
+        assert_eq!(x0a, x0b);
+
+        // Different variable indices: not equal
+        let x1 = Term::new_var(1);
+        assert_ne!(x0a, x1);
+
+        // Variable vs constant: not equal
+        assert_ne!(x0a, a1);
+    }
+
+    #[test]
+    fn term_structural_hash() {
+        use std::collections::HashSet;
+
+        let f = Function::new("f_thash", 2);
+        let a = Function::constant("a_thash");
+        let b = Function::constant("b_thash");
+
+        let t1 = f.with([a, b]);
+        let t2 = f.with([a, b]);
+        let t3 = f.with([b, a]);
+
+        // Equal terms hash identically (required by Hash contract)
+        let mut set = HashSet::new();
+        set.insert(t1);
+        assert!(set.contains(&t2));
+
+        // Different terms can be stored together
+        set.insert(t3);
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn formula_structural_equality() {
+        let p = Predicate::new("p_feq", 1);
+        let q = Predicate::new("q_feq", 1);
+        let a = Function::constant("a_feq");
+        let b = Function::constant("b_feq");
+
+        // Same atomic formula constructed twice: equal
+        let pa1 = p.with(a);
+        let pa2 = p.with(a);
+        assert_eq!(pa1, pa2);
+
+        // Different predicates: not equal
+        assert_ne!(p.with(a), q.with(a));
+
+        // Different arguments: not equal
+        assert_ne!(p.with(a), p.with(b));
+
+        // Negation: equal iff inner equal
+        assert_eq!(!pa1, !pa2);
+        assert_ne!(!pa1, !p.with(b));
+
+        // Conjunction
+        let f1 = p.with(a) & q.with(b);
+        let f2 = p.with(a) & q.with(b);
+        let f3 = p.with(a) & q.with(a);
+        assert_eq!(f1, f2);
+        assert_ne!(f1, f3);
+
+        // Implication
+        let i1 = p.with(a) >> q.with(b);
+        let i2 = p.with(a) >> q.with(b);
+        assert_eq!(i1, i2);
+        // Implication is not symmetric
+        assert_ne!(p.with(a) >> q.with(b), q.with(b) >> p.with(a));
+
+        // A formula is equal to itself (Copy type, same variable index)
+        let fa = forall(|x| p.with(x));
+        assert_eq!(fa, fa);
+
+        // forall vs exists with same body: not equal (different connective)
+        let fe = exists(|x| p.with(x));
+        assert_ne!(fa, fe);
+
+        // Equality literals: same args → equal
+        let eq1 = a.eq(b);
+        let eq2 = a.eq(b);
+        assert_eq!(eq1, eq2);
+        // Equality literal vs inequality literal: not equal
+        assert_ne!(a.eq(b), !p.with(a));
+    }
+
+    #[test]
+    fn formula_structural_hash() {
+        use std::collections::HashSet;
+
+        let p = Predicate::new("p_fhash", 1);
+        let q = Predicate::new("q_fhash", 1);
+        let a = Function::constant("a_fhash");
+
+        let f1 = p.with(a) & q.with(a);
+        let f2 = p.with(a) & q.with(a);
+        let f3 = p.with(a) | q.with(a);
+
+        let mut set = HashSet::new();
+        set.insert(f1);
+        // Equal formula is found in the set
+        assert!(set.contains(&f2));
+        // Different formula can be added
+        set.insert(f3);
+        assert_eq!(set.len(), 2);
     }
 }

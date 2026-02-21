@@ -579,3 +579,15 @@ unsafe extern "C" {
         input_type: vampire_input_type_t,
     ) -> *const ::std::os::raw::c_char;
 }
+unsafe extern "C" {
+    pub fn vampire_term_equal(a: *mut vampire_term_t, b: *mut vampire_term_t) -> bool;
+}
+unsafe extern "C" {
+    pub fn vampire_term_hash(a: *mut vampire_term_t) -> u64;
+}
+unsafe extern "C" {
+    pub fn vampire_formula_equal(a: *mut vampire_formula_t, b: *mut vampire_formula_t) -> bool;
+}
+unsafe extern "C" {
+    pub fn vampire_formula_hash(a: *mut vampire_formula_t) -> u64;
+}

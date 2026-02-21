@@ -1,6 +1,6 @@
 [package]
 name = "vampire-sys"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 authors = ["Daniel James"]
 description = "Low-level FFI bindings to the Vampire theorem prover (use the 'vampire' crate instead)"
