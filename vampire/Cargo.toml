@@ -1,6 +1,6 @@
 [package]
 name = "vampire-prover"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2024"
 authors = ["Daniel James"]
 description = "Safe Rust bindings to the Vampire theorem prover for first-order logic"
@@ -11,5 +11,37 @@ categories = ["science", "mathematics"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 
+[features]
+# Default pulls in the C++-backed integrated prover so existing consumers
+# are unaffected.
+default = ["integrated-prover"]
+
+# When enabled: compiles the FFI module (`ffi`) which links vampire-sys
+# (Vampire C++ library via CMake). Without this feature only `options` is
+# available.
+integrated-prover = ["dep:vampire-sys", "dep:libc"]
+
 [dependencies]
-vampire-sys = { path = "../vampire-sys", version = "0.5" }
+vampire-sys = { path = "../vampire-sys", version = "0.6", optional = true }
+libc        = { version = "0.2", optional = true }
+
+# Examples use the FFI types, so they require the C++ backend.
+[[example]]
+name = "group"
+required-features = ["integrated-prover"]
+
+[[example]]
+name = "group2"
+required-features = ["integrated-prover"]
+
+[[example]]
+name = "name_reuse"
+required-features = ["integrated-prover"]
+
+[[example]]
+name = "debug_problem"
+required-features = ["integrated-prover"]
+
+[[example]]
+name = "bench_index2"
+required-features = ["integrated-prover"]

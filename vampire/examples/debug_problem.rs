@@ -1,5 +1,6 @@
 use std::time::Duration;
-use vampire_prover::{Function, Options, Predicate, Problem, Term, forall};
+use vampire_prover::ffi::*;
+use vampire_prover::Options;
 
 fn main() {
     let t0 = Function::constant("t0");

@@ -59,6 +59,63 @@ pub const vampire_proof_result_t_VAMPIRE_UNKNOWN: vampire_proof_result_t = 4;
 pub const vampire_proof_result_t_VAMPIRE_INCOMPLETE: vampire_proof_result_t = 5;
 #[doc = " Result of a proving attempt"]
 pub type vampire_proof_result_t = ::std::os::raw::c_uint;
+
+pub const vampire_interpretation_t_VAMPIRE_INTERP_EQUAL: vampire_interpretation_t = 0;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_GREATER: vampire_interpretation_t = 1;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_GREATER_EQUAL: vampire_interpretation_t = 2;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_LESS: vampire_interpretation_t = 3;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_LESS_EQUAL: vampire_interpretation_t = 4;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_DIVIDES: vampire_interpretation_t = 5;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_SUCCESSOR: vampire_interpretation_t = 6;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_UNARY_MINUS: vampire_interpretation_t = 7;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_PLUS: vampire_interpretation_t = 8;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_MINUS: vampire_interpretation_t = 9;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_MULTIPLY: vampire_interpretation_t = 10;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_QUOTIENT_E: vampire_interpretation_t = 11;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_QUOTIENT_T: vampire_interpretation_t = 12;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_QUOTIENT_F: vampire_interpretation_t = 13;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_REMAINDER_E: vampire_interpretation_t = 14;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_REMAINDER_T: vampire_interpretation_t = 15;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_REMAINDER_F: vampire_interpretation_t = 16;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_ABS: vampire_interpretation_t = 17;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_GREATER: vampire_interpretation_t = 18;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_GREATER_EQUAL: vampire_interpretation_t = 19;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_LESS: vampire_interpretation_t = 20;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_LESS_EQUAL: vampire_interpretation_t = 21;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_PLUS: vampire_interpretation_t = 22;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_MINUS: vampire_interpretation_t = 23;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_MULTIPLY: vampire_interpretation_t = 24;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_QUOTIENT: vampire_interpretation_t = 25;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_GREATER: vampire_interpretation_t = 26;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_GREATER_EQUAL: vampire_interpretation_t = 27;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_LESS: vampire_interpretation_t = 28;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_LESS_EQUAL: vampire_interpretation_t = 29;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_PLUS: vampire_interpretation_t = 30;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_MINUS: vampire_interpretation_t = 31;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_MULTIPLY: vampire_interpretation_t = 32;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_QUOTIENT: vampire_interpretation_t = 33;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_FLOOR: vampire_interpretation_t = 34;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_CEILING: vampire_interpretation_t = 35;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_TRUNCATE: vampire_interpretation_t = 36;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_ROUND: vampire_interpretation_t = 37;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_FLOOR: vampire_interpretation_t = 38;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_CEILING: vampire_interpretation_t = 39;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_TRUNCATE: vampire_interpretation_t = 40;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_ROUND: vampire_interpretation_t = 41;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_FLOOR: vampire_interpretation_t = 42;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_CEILING: vampire_interpretation_t = 43;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_TRUNCATE: vampire_interpretation_t = 44;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_ROUND: vampire_interpretation_t = 45;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_TO_INT: vampire_interpretation_t = 46;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_TO_RAT: vampire_interpretation_t = 47;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_INT_TO_REAL: vampire_interpretation_t = 48;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_TO_INT: vampire_interpretation_t = 49;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_TO_RAT: vampire_interpretation_t = 50;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_RAT_TO_REAL: vampire_interpretation_t = 51;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_TO_INT: vampire_interpretation_t = 52;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_TO_RAT: vampire_interpretation_t = 53;
+pub const vampire_interpretation_t_VAMPIRE_INTERP_REAL_TO_REAL: vampire_interpretation_t = 54;
+pub type vampire_interpretation_t = ::std::os::raw::c_uint;
 pub const vampire_input_type_t_VAMPIRE_AXIOM: vampire_input_type_t = 0;
 pub const vampire_input_type_t_VAMPIRE_NEGATED_CONJECTURE: vampire_input_type_t = 1;
 pub const vampire_input_type_t_VAMPIRE_CONJECTURE: vampire_input_type_t = 2;
@@ -338,6 +395,13 @@ unsafe extern "C" {
     pub fn vampire_set_saturation_algorithm(algorithm: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
+    #[doc = " Set a generic Vampire option by name and value string.\n Returns 0 on success, -1 on error."]
+    pub fn vampire_set_option(
+        name: *const ::std::os::raw::c_char,
+        value: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+unsafe extern "C" {
     #[doc = " Register a function symbol with the given name and arity.\n For constants, use arity 0.\n @param name Symbol name (null-terminated string)\n @param arity Number of arguments\n @return functor index for use in term construction"]
     pub fn vampire_add_function(
         name: *const ::std::os::raw::c_char,
@@ -349,6 +413,33 @@ unsafe extern "C" {
     pub fn vampire_add_predicate(
         name: *const ::std::os::raw::c_char,
         arity: ::std::os::raw::c_uint,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_add_interpreted_function(
+        name: *const ::std::os::raw::c_char,
+        interp: vampire_interpretation_t,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_add_interpreted_predicate(
+        name: *const ::std::os::raw::c_char,
+        interp: vampire_interpretation_t,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_add_integer_constant(
+        value: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_add_rational_constant(
+        value: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_add_real_constant(
+        value: *const ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_uint;
 }
 unsafe extern "C" {
@@ -455,6 +546,9 @@ unsafe extern "C" {
     pub fn vampire_conjecture_formula(f: *mut vampire_formula_t) -> *mut vampire_unit_t;
 }
 unsafe extern "C" {
+    pub fn vampire_free_unit(unit: *mut vampire_unit_t);
+}
+unsafe extern "C" {
     #[doc = " Create an axiom clause (disjunction of literals).\n @param literals Array of literals\n @param count Number of literals\n @return Clause handle"]
     pub fn vampire_axiom_clause(
         literals: *mut *mut vampire_literal_t,
@@ -493,6 +587,35 @@ unsafe extern "C" {
 unsafe extern "C" {
     #[doc = " Run the prover on a problem.\n @param problem The problem to solve\n @return The proof result"]
     pub fn vampire_prove(problem: *mut vampire_problem_t) -> vampire_proof_result_t;
+    pub fn vampire_sort_bool() -> ::std::os::raw::c_uint;
+    pub fn vampire_sort_arrow(
+        from: ::std::os::raw::c_uint,
+        to: ::std::os::raw::c_uint,
+    ) -> ::std::os::raw::c_uint;
+    pub fn vampire_hol_app(
+        head: *mut vampire_term_t,
+        arg: *mut vampire_term_t,
+    ) -> *mut vampire_term_t;
+    pub fn vampire_hol_app_sorted(
+        head: *mut vampire_term_t,
+        head_sort: ::std::os::raw::c_uint,
+        arg: *mut vampire_term_t,
+    ) -> *mut vampire_term_t;
+    pub fn vampire_bool_term_formula(t: *mut vampire_term_t) -> *mut vampire_formula_t;
+    pub fn vampire_formula_term(f: *mut vampire_formula_t) -> *mut vampire_term_t;
+}
+unsafe extern "C" {
+    pub fn vampire_clausify(problem: *mut vampire_problem_t) -> usize;
+}
+unsafe extern "C" {
+    pub fn vampire_get_cnf(
+        problem: *mut vampire_problem_t,
+        out_clauses: *mut *mut *mut ::std::os::raw::c_char,
+        out_count: *mut usize,
+    ) -> ::std::os::raw::c_int;
+}
+unsafe extern "C" {
+    pub fn vampire_free_string_array(strings: *mut *mut ::std::os::raw::c_char, count: usize);
 }
 unsafe extern "C" {
     #[doc = " Get the refutation (proof) after a successful vampire_prove() call.\n @return The empty clause with inference chain, or NULL if no proof"]
@@ -590,4 +713,157 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn vampire_formula_hash(a: *mut vampire_formula_t) -> u64;
+}
+unsafe extern "C" {
+    #[doc = " Register a user-defined sort by name.\n Idempotent: calling with the same name returns the same sort index.\n @param name Sort name (null-terminated string)\n @return sort index for use in typed symbol registration and quantifiers"]
+    pub fn vampire_add_sort(name: *const ::std::os::raw::c_char) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Return the sort index for the default individual sort ($i)."]
+    pub fn vampire_sort_default() -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Return the sort index for the integer sort ($int)."]
+    pub fn vampire_sort_int() -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Return the sort index for the real sort ($real)."]
+    pub fn vampire_sort_real() -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Return the sort index for the rational sort ($rat)."]
+    pub fn vampire_sort_rational() -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Register a typed function symbol.\n Only sets the sort signature when the symbol is newly created.\n @param name Symbol name\n @param arg_sort_indices Array of sort indices for each argument\n @param arity Number of arguments\n @param return_sort_index Sort index for the return type\n @return functor index for use in term construction"]
+    pub fn vampire_add_typed_function(
+        name: *const ::std::os::raw::c_char,
+        arg_sort_indices: *mut ::std::os::raw::c_uint,
+        arity: usize,
+        return_sort_index: ::std::os::raw::c_uint,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Register a typed predicate symbol.\n Only sets the sort signature when the symbol is newly created.\n @param name Symbol name\n @param arg_sort_indices Array of sort indices for each argument\n @param arity Number of arguments\n @return predicate index for use in literal construction"]
+    pub fn vampire_add_typed_predicate(
+        name: *const ::std::os::raw::c_char,
+        arg_sort_indices: *mut ::std::os::raw::c_uint,
+        arity: usize,
+    ) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    #[doc = " Create a universally quantified formula with a sort annotation on the bound variable.\n @param var_index The variable index to bind\n @param sort_index The sort index for the bound variable\n @param f The body formula\n @return Formula handle"]
+    pub fn vampire_forall_typed(
+        var_index: ::std::os::raw::c_uint,
+        sort_index: ::std::os::raw::c_uint,
+        f: *mut vampire_formula_t,
+    ) -> *mut vampire_formula_t;
+}
+unsafe extern "C" {
+    #[doc = " Create an existentially quantified formula with a sort annotation on the bound variable.\n @param var_index The variable index to bind\n @param sort_index The sort index for the bound variable\n @param f The body formula\n @return Formula handle"]
+    pub fn vampire_exists_typed(
+        var_index: ::std::os::raw::c_uint,
+        sort_index: ::std::os::raw::c_uint,
+        f: *mut vampire_formula_t,
+    ) -> *mut vampire_formula_t;
+}
+unsafe extern "C" {
+    #[doc = " Create a typed equality literal (s = t or s != t) with an explicit sort.\n @param positive true for equality, false for disequality\n @param lhs Left-hand side term\n @param rhs Right-hand side term\n @param sort_index The sort index of the terms\n @return Literal handle"]
+    pub fn vampire_typed_eq(
+        positive: bool,
+        lhs: *mut vampire_term_t,
+        rhs: *mut vampire_term_t,
+        sort_index: ::std::os::raw::c_uint,
+    ) -> *mut vampire_literal_t;
+}
+
+// ---- Structured Literal / Term readers (hand-added, matching header) -------
+
+unsafe extern "C" {
+    pub fn vampire_literal_predicate(lit: *mut vampire_literal_t) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_literal_is_positive(lit: *mut vampire_literal_t) -> bool;
+}
+unsafe extern "C" {
+    pub fn vampire_literal_is_equality(lit: *mut vampire_literal_t) -> bool;
+}
+unsafe extern "C" {
+    pub fn vampire_literal_arity(lit: *mut vampire_literal_t) -> usize;
+}
+unsafe extern "C" {
+    pub fn vampire_literal_arg(
+        lit: *mut vampire_literal_t,
+        i: usize,
+    ) -> *mut vampire_term_t;
+}
+unsafe extern "C" {
+    pub fn vampire_term_is_var(term: *mut vampire_term_t) -> bool;
+}
+unsafe extern "C" {
+    pub fn vampire_term_var_index(term: *mut vampire_term_t) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_term_functor(term: *mut vampire_term_t) -> ::std::os::raw::c_uint;
+}
+unsafe extern "C" {
+    pub fn vampire_term_arity(term: *mut vampire_term_t) -> usize;
+}
+unsafe extern "C" {
+    pub fn vampire_term_arg(
+        term: *mut vampire_term_t,
+        i: usize,
+    ) -> *mut vampire_term_t;
+}
+unsafe extern "C" {
+    pub fn vampire_functor_name(
+        functor_idx: ::std::os::raw::c_uint,
+    ) -> *const ::std::os::raw::c_char;
+}
+unsafe extern "C" {
+    pub fn vampire_predicate_name(
+        predicate_idx: ::std::os::raw::c_uint,
+    ) -> *const ::std::os::raw::c_char;
+}
+unsafe extern "C" {
+    #[doc = " Enumerate the units in a problem as a heap-allocated array of handles.\n\n Typically called after vampire_clausify(), in which case every returned unit\n is a clause (and can be converted via vampire_unit_as_clause).  The returned\n handles are borrowed -- they are owned by the problem and must NOT be freed\n with vampire_free_unit.  Free the containing array with\n vampire_free_unit_array()."]
+    pub fn vampire_problem_units(
+        problem: *mut vampire_problem_t,
+        out_units: *mut *mut *mut vampire_unit_t,
+        out_count: *mut usize,
+    ) -> ::std::os::raw::c_int;
+}
+unsafe extern "C" {
+    #[doc = " Free a unit-handle array returned by vampire_problem_units()."]
+    pub fn vampire_free_unit_array(units: *mut *mut vampire_unit_t);
+}
+unsafe extern "C" {
+    #[doc = " Vampire's unique identifier for this unit (Unit::number()).\n\
+             \n\
+             Every Unit Vampire creates carries a monotonically-allocated\n\
+             unit_number.  Used by callers that need to attribute\n\
+             post-clausify clauses to their originating input axioms: record\n\
+             the number at input time, walk vampire_unit_parent after\n\
+             clausification, match against recorded inputs."]
+    pub fn vampire_unit_number(unit: *mut vampire_unit_t) -> u32;
+}
+unsafe extern "C" {
+    #[doc = " Number of direct inference-parents of this unit.\n\
+             \n\
+             Input units (axioms, conjecture) typically return 0.  Derived\n\
+             units (e.g. CNF output clauses) return >= 1 — one per parent\n\
+             in the inference graph."]
+    pub fn vampire_unit_parent_count(unit: *mut vampire_unit_t) -> usize;
+}
+unsafe extern "C" {
+    #[doc = " The i-th direct inference-parent of this unit.\n\
+             \n\
+             Parents are enumerated in Inference::Iterator order.  Returns\n\
+             NULL if `i >= vampire_unit_parent_count(unit)`.  The returned\n\
+             pointer aliases Vampire internal state and MUST NOT be freed;\n\
+             it lives until the next vampire_prepare_for_next_proof() call."]
+    pub fn vampire_unit_parent(
+        unit: *mut vampire_unit_t,
+        i: usize,
+    ) -> *mut vampire_unit_t;
 }

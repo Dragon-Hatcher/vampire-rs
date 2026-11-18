@@ -1,0 +1,33 @@
+feat: add TFF support, TPTP parser, ergonomic term API, and multi-proof isolation
+
+Typed First-Order Form (TFF):
+- Add Sort type with built-in ($i, $int, $real, $rat) and user-defined sorts
+- Add Function::typed() and Predicate::typed() for sort-annotated symbols
+- Add Function::interpreted() and Predicate::interpreted() for arithmetic theories
+- Add Interp enum covering integer, rational, and real arithmetic operators
+- Add Formula::new_forall_typed() / new_exists_typed() for typed quantifiers
+- Add Term::typed_eq() for sort-annotated equality
+
+Ergonomic term construction:
+- Add IntoTerm trait: i32/i64/u32/u64/f32/f64/Term all convert automatically
+- Add IntoTermArgs trait: tuples, arrays, slices, and Vec all work as argument lists
+- Add Term::int() and Term::real() for numeric literal terms
+- Add forall_typed() / exists_typed() helper functions
+
+TPTP parser (vampire/src/tptp.rs):
+- Parse FOF and TFF problem files via Problem::from_tptp()
+- Handle tff type declarations ($tType, sort constants, typed functions/predicates)
+- Map TPTP built-ins ($less, $greater, $sum, $difference, etc.) to interpreted symbols
+- Parse typed quantifiers ([X: $int]) and product-type signatures ((T1 * T2) > T3)
+
+Multi-proof isolation:
+- Add Problem::solve_isolated() using fork() to run each proof in a child process
+- Child result communicated back via pipe; handles crash/signal detection
+- Add Problem::with_options() builder for post-parse option configuration
+
+Other:
+- Update vampire-sys bindings for typed/interpreted symbol registration
+- Fix timeout test to use millisecond-precision limit
+- Fix UnknownReason doctest to cover Other(_) arm
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

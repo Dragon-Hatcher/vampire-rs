@@ -1,4 +1,5 @@
-use vampire_prover::{Function, Options, Problem, ProofRes, Term, forall};
+use vampire_prover::ffi::*;
+use vampire_prover::Options;
 
 fn main() {
     // Prove that the identity element works on the left using group axioms

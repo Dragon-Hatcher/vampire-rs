@@ -1,4 +1,5 @@
-use vampire_prover::{Function, Options, Predicate, Problem, ProofRes, Term, exists, forall};
+use vampire_prover::ffi::*;
+use vampire_prover::Options;
 
 fn main() {
     // Prove that every subgroup of index 2 is normal.

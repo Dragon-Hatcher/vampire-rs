@@ -7,11 +7,11 @@ Safe Rust bindings to the [Vampire](https://vprover.github.io/) theorem prover f
 This crate provides a high-level, safe Rust interface to Vampire, a state-of-the-art automated theorem prover. Vampire can prove theorems, check satisfiability, and find counterexamples in various mathematical domains including:
 
 - Propositional and first-order logic
-- Equality reasoning
-- Group theory and algebra
-- Graph properties
-- Program verification
-- Mathematical proofs
+- **Typed First-Order Form (TFF)** support
+- **Interpreted Arithmetic** (Integers, Rationals, Reals)
+- Equality reasoning and Group theory
+- Graph properties and Program verification
+- **CNF Clausification** (extracting clauses from formulas)
 
 ## Quick Start
 
@@ -42,192 +42,110 @@ assert_eq!(result, ProofRes::Proved);
 
 ### Terms
 
-Terms represent objects in first-order logic:
+Terms represent objects in logic:
 
 ```rust
 use vampire_prover::{Function, Term};
 
 // Constants (0-ary functions)
-let zero = Function::constant("0");
 let socrates = Function::constant("socrates");
 
 // Variables
 let x = Term::new_var(0);
-let y = Term::new_var(1);
 
 // Function applications
 let succ = Function::new("succ", 1);
-let one = succ.with(zero);
-
-let add = Function::new("add", 2);
-let sum = add.with([x, y]);
+let one = succ.with(Function::constant("0"));
 ```
 
-**Note**: Function and predicate symbols are interned. Calling `Function::new` or `Predicate::new` with the same name and arity multiple times will return the same symbol. It's safe to use the same name with different arities - they will be treated as distinct symbols.
+### Sorts (Types)
+
+Vampire supports multi-sorted logic (TFF). You can use built-in sorts or define your own:
+
+```rust
+use vampire_prover::Sort;
+
+let int_sort = Sort::int();       // Built-in Integer sort
+let real_sort = Sort::real();     // Built-in Real sort
+let list_sort = Sort::new("list"); // Custom user-defined sort
+```
 
 ### Formulas
 
 Formulas are logical statements:
 
 ```rust
-use vampire_prover::{Function, Predicate, forall, exists};
+use vampire_prover::{Predicate, forall, exists};
 
 let p = Predicate::new("P", 1);
 let q = Predicate::new("Q", 1);
-let x = Function::constant("x");
 
-// Atomic formulas
-let px = p.with(x);
-let qx = q.with(x);
-
-// Logical connectives
-let both = px & qx;          // P(x) ∧ Q(x) - conjunction
-let either = px | qx;        // P(x) ∨ Q(x) - disjunction
-let implies = px >> qx;      // P(x) → Q(x) - implication
-let not_px = !px;            // ¬P(x) - negation
-let equiv = px.iff(qx);      // P(x) ↔ Q(x) - biconditional
+// Connectives
+let both = p.with(x) & q.with(x);   // Conjunction
+let either = p.with(x) | q.with(x); // Disjunction
+let implies = p.with(x) >> q.with(x); // Implication
+let equiv = p.with(x).iff(q.with(x)); // Biconditional
 
 // Quantifiers
-let all = forall(|x| p.with(x));        // ∀x. P(x)
-let some = exists(|x| p.with(x));       // ∃x. P(x)
+let all = forall(|x| p.with(x));    // ∀x. P(x)
+let some = exists(|x| p.with(x));   // ∃x. P(x)
 ```
 
-### Equality
+## Typed Logic (TFF)
 
-Equality is a built-in predicate:
+You can define symbols with specific argument and return sorts:
 
 ```rust
-use vampire_prover::{Function, forall};
+use vampire_prover::{Sort, Predicate, Function, forall_typed};
 
-let f = Function::new("f", 1);
-let x = Function::constant("x");
+let person = Sort::new("person");
+let father_of = Function::typed("father_of", &[person], person);
+let is_happy = Predicate::typed("is_happy", &[person]);
 
-// Direct equality
-let eq1 = x.eq(x);  // x = x
-
-// Equality in quantified formulas
-let reflexive = forall(|x| x.eq(x));  // ∀x. x = x
+// Typed quantification: ∀(x: person). is_happy(father_of(x))
+let formula = forall_typed(person, |x| is_happy.with(father_of.with(x)));
 ```
 
-## Examples
+## Interpreted Arithmetic
 
-### Graph Reachability
-
-Prove that a path exists in a graph using transitivity:
+Vampire provides built-in support for interpreted arithmetic symbols:
 
 ```rust
-use vampire_prover::{Function, Predicate, Problem, ProofRes, Options, forall};
+use vampire_prover::{Sort, Function, Predicate, Interp, Term, Problem, Options, ProofRes};
 
-let edge = Predicate::new("edge", 2);
-let path = Predicate::new("path", 2);
+let int = Sort::int();
+let plus = Function::interpreted("$sum", Interp::IntPlus);
+let less = Predicate::interpreted("$less", Interp::IntLess);
 
-// Create nodes
-let a = Function::constant("a");
-let b = Function::constant("b");
-let c = Function::constant("c");
-let d = Function::constant("d");
+// x + 1 < 5
+let x = Term::new_var(0);
+let formula = less.with([plus.with([x, Term::int("1")]), Term::int("5")]);
 
-// Axiom: Edges are paths
-let edges_are_paths = forall(|x| forall(|y|
-    edge.with([x, y]) >> path.with([x, y])
-));
-
-// Axiom: Paths are transitive
-let transitivity = forall(|x| forall(|y| forall(|z|
-    (path.with([x, y]) & path.with([y, z])) >> path.with([x, z])
-)));
-
-// Prove there's a path from a to d
-let result = Problem::new(Options::new())
-    .with_axiom(edges_are_paths)
-    .with_axiom(transitivity)
-    .with_axiom(edge.with([a, b]))
-    .with_axiom(edge.with([b, c]))
-    .with_axiom(edge.with([c, d]))
-    .conjecture(path.with([a, d]))
-    .solve();
-
-assert_eq!(result, ProofRes::Proved);
+// You can also use ergonomic conversion from Rust literals
+let formula = less.with([plus.with([x, 1]), 5]);
 ```
 
-### Group Theory
+## Clausification
 
-Prove the left identity from the standard group axioms:
+You can use Vampire to transform any complex formula into Conjunctive Normal Form (CNF):
 
 ```rust
-use vampire_prover::{Function, Problem, ProofRes, Options, Term, forall};
+use vampire_prover::{Predicate, Problem, Options, forall};
 
-let mult = Function::new("mult", 2);
-let inv = Function::new("inv", 1);
-let one = Function::constant("1");
+let p = Predicate::new("P", 1);
+let q = Predicate::new("Q", 1);
 
-let mul = |x: Term, y: Term| mult.with([x, y]);
+// Axiom: ∀x. P(x) ↔ Q(x)
+let mut problem = Problem::new(Options::new())
+    .with_axiom(forall(|x| p.with(x).iff(q.with(x))));
 
-// Group axioms
-let right_identity = forall(|x| mul(x, one).eq(x));
-let right_inverse = forall(|x| mul(x, inv.with(x)).eq(one));
-let associativity = forall(|x| forall(|y| forall(|z|
-    mul(mul(x, y), z).eq(mul(x, mul(y, z)))
-)));
+// Extract clauses
+problem.clausify();
+let clauses = problem.get_cnf();
 
-// Prove left identity
-let left_identity = forall(|x| mul(one, x).eq(x));
-
-let result = Problem::new(Options::new())
-    .with_axiom(right_identity)
-    .with_axiom(right_inverse)
-    .with_axiom(associativity)
-    .conjecture(left_identity)
-    .solve();
-
-assert_eq!(result, ProofRes::Proved);
+// clauses will contain strings like:
+// [ "¬'P'(X0) | 'Q'(X0)", "'P'(X0) | ¬'Q'(X0)" ]
 ```
-
-### Set Theory
-
-Prove properties about sets:
-
-```rust
-use vampire_prover::{Function, Predicate, Problem, Options, forall};
-
-let member = Predicate::new("member", 2);
-let subset = Predicate::new("subset", 2);
-
-// Define subset: A ⊆ B ↔ ∀x. x ∈ A → x ∈ B
-let subset_def = forall(|a| forall(|b|
-    subset.with([a, b]).iff(
-        forall(|x| member.with([x, a]) >> member.with([x, b]))
-    )
-));
-
-// Prove subset is reflexive: ∀A. A ⊆ A
-let reflexive = forall(|a| subset.with([a, a]));
-
-let result = Problem::new(Options::new())
-    .with_axiom(subset_def)
-    .conjecture(reflexive)
-    .solve();
-
-assert_eq!(result, ProofRes::Proved);
-```
-
-## Configuration Options
-
-You can configure the prover's behavior using the `Options` struct:
-
-```rust
-use vampire_prover::{Problem, Options};
-use std::time::Duration;
-
-// Default options (no timeout)
-let problem = Problem::new(Options::new());
-
-// Set a timeout
-let problem = Problem::new(Options::new().timeout(Duration::from_secs(5)));
-```
-
-Currently supported options:
-- **Timeout**: Set a time limit for the prover. If exceeded, the result will be `ProofRes::Unknown(UnknownReason::Timeout)`.
 
 ## Operators
 
@@ -241,36 +159,32 @@ The crate provides convenient operators for logical connectives:
 | `!` | Negation (NOT) | `!p` |
 | `.iff()` | Biconditional (IFF) | `p.iff(q)` |
 | `.eq()` | Equality | `x.eq(y)` |
+| `.typed_eq(s)` | Typed Equality | `x.typed_eq(y, sort)` |
 
 ## Proof Results
 
 When you call `Problem::solve()`, you get one of three results:
 
-- `ProofRes::Proved` - The conjecture was successfully proved from the axioms
-- `ProofRes::Unprovable` - The axioms are insufficient to prove the conjecture (note: the conjecture could still be true or false, but the given axioms cannot establish it)
-- `ProofRes::Unknown(reason)` - Vampire could not determine if the axioms imply the conjecture:
-  - `UnknownReason::Timeout` - Time limit exceeded
-  - `UnknownReason::MemoryLimit` - Memory limit exceeded
-  - `UnknownReason::Incomplete` - Problem uses incomplete logic
-  - `UnknownReason::Unknown` - Unknown reason
+- `ProofRes::Proved` - The conjecture was successfully proved
+- `ProofRes::Unprovable` - The axioms are insufficient to prove the conjecture
+- `ProofRes::Unknown(reason)` - Vampire could not determine the result (e.g., `Timeout`)
+
+## Limitations and Stability
+
+### Process-Global Static State
+The underlying Vampire C++ library was originally designed as a command-line tool where each execution starts with a fresh process. When used as a library, Vampire maintains extensive **process-global static state**, including:
+- **Term Sharing Caches**: Hash-consed terms and literals.
+- **Global Signature**: The registry of all function and predicate symbols.
+- **Saturation Engine State**: Statistics, ordering diagrams, and timer configurations.
+
+#### Critical Stability Rules:
+1. **Handle Persistence**: Rust handles like `Predicate`, `Function`, and `Sort` store IDs that refer to the global signature. If you call `vampire_sys::vampire_reset()`, these handles become invalid and using them will cause a **SIGSEGV**.
+2. **Sequential Testing**: Running multiple complex proofs in the same process can occasionally lead to internal memory corruption in Vampire's saturation engine. It is highly recommended to run tests with `--test-threads=1`.
+3. **Thread Safety**: This crate uses a global mutex to serialize all calls to Vampire. While safe to call from multiple threads, only one proof can execute at any given time.
 
 ## Thread Safety
-
-**Important**: The underlying Vampire library is not thread-safe. This crate protects all operations with a global mutex, so while you can safely use the library from multiple threads, all proof operations will be serialized. Only one proof can execute at a time.
+**Important**: As noted above, the underlying Vampire library is not thread-safe. This crate protects all operations with a global mutex.
 
 ## License
 
-### Rust Bindings
-
-This Rust crate is licensed under either of:
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
-
-### Vampire Theorem Prover
-
-The underlying Vampire theorem prover library is licensed under the **BSD 3-Clause License**. See the [Vampire LICENCE file](https://github.com/vprover/vampire/blob/master/LICENCE) for details.
-
-When distributing applications using this crate, you must comply with both the Rust bindings license (your choice of MIT or Apache-2.0) and the Vampire BSD 3-Clause license requirements.
+This Rust crate is licensed under either of the Apache License, Version 2.0 or the MIT license. The underlying Vampire theorem prover library is licensed under the **BSD 3-Clause License**.

@@ -1,7 +1,8 @@
+#![cfg(feature = "integrated-prover")]
+
 use std::time::Duration;
-use vampire_prover::{
-    Function, Options, Predicate, Problem, ProofRes, UnknownReason, exists, forall,
-};
+use vampire_prover::ffi::*;
+use vampire_prover::Options;
 
 #[test]
 fn timeout_works() {
@@ -69,7 +70,7 @@ fn timeout_works2() {
     });
 
     // Axiom 2: ~false (always true)
-    let axiom2 = !false_pred.with([]);
+    let axiom2 = !false_pred.with(());
 
     // Conjecture: ! [X0] : (in(X0,v6(v3(v1,v2))) <=> ! [X1] : (in(X1,v3(v1,v2)) => in(X0,X1)))
     let conjecture = forall(|x0| {
